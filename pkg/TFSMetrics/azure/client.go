@@ -7,8 +7,17 @@ import (
 
 type AzureClientInterface interface {
 	Connect(config config) error
-	GetChangesets()
+	//Получает все ченджсеты
+	GetChangesets() 
+	//Получаем изменения для отдельного ченджсета.
+	//В нём есть HashValue для структуры из тз
 	GetChangesetChanges()
+	//Получение нового файла из ченджсета
+	GetCurrentFile()
+	//Получение старого файла из ченджсета
+	GetPreviousFile()
+	//Получение изменений (добавленные и удаленные строки)
+	GetFileChanges()
 }
 
 type Client struct {
@@ -27,10 +36,10 @@ func (ac *Client) Connect(config config) error {
 
 	ctx := config.Context
 
-	coreClient, err := tfvc.NewClient(ctx, connection)
+	tfvcClient, err := tfvc.NewClient(ctx, connection)
 	if err != nil {
 		return err
 	}
-	ac.Client = &coreClient
+	ac.Client = &tfvcClient
 	return nil
 }
