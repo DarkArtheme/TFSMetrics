@@ -8,6 +8,7 @@ import (
 type AzureClientInterface interface {
 	Connect(config config) error
 	GetChangesets()
+	GetChangesetChanges()
 }
 
 type Client struct {
