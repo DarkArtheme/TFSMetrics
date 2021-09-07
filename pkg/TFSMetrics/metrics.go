@@ -27,7 +27,7 @@ type Commit struct {
 
 type commitsCollection struct {
 	nameOfProject string
-	azure         *azure.Azure
+	azure         azure.AzureInterface
 }
 
 func (c *commitsCollection) Open() error {
@@ -41,7 +41,7 @@ func (c *commitsCollection) GetCommitIterator() (CommitIterator, error) {
 	}
 	return &iterator{
 		nameOfProject: c.nameOfProject,
-		azure:         c.azure,
+		azure:         c.azure.Azure(),
 		commits:       changeSets,
 	}, nil
 }
@@ -49,7 +49,7 @@ func (c *commitsCollection) GetCommitIterator() (CommitIterator, error) {
 type iterator struct {
 	index         int
 	nameOfProject string
-	azure         *azure.Azure
+	azure         azure.AzureInterface
 	commits       []*int
 }
 

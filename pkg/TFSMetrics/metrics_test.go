@@ -5,7 +5,7 @@ import (
 	"go-marathon-team-3/pkg/TFSMetrics/azure"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func Test_commitsCollection_Open(t *testing.T) {
@@ -24,7 +24,7 @@ func Test_commitsCollection_Open(t *testing.T) {
 			azure:         azure,
 		}
 		iter, err := commmits.GetCommitIterator()
-		assert.NoError(t, err)
+		require.NoError(t, err)
 		for commit, err := iter.Next(); err == nil; commit, err = iter.Next() {
 			fmt.Println(commit)
 		}

@@ -9,12 +9,13 @@ import (
 )
 
 type AzureInterface interface {
-	Connect(config config)              // Подключение к Azure DevOps
-	TfvcClientConnection(config) error  // для Repository.Open()
+	Azure() *Azure
+	Connect()                           // Подключение к Azure DevOps
+	TfvcClientConnection() error        // для Repository.Open()
 	ListOfProjects() ([]*string, error) // Получаем список проектов
 
-	GetChangesets() ([]*int, error)                                      // Получает все id ченджсетов проекта
-	GetChangesetChanges(id *int) (*ChangeSet, error)                     // получает все изминения для конкретного changeSet
+	GetChangesets(nameOfProject string) ([]*int, error)                  // Получает все id ченджсетов проекта
+	GetChangesetChanges(id *int, project string) (*ChangeSet, error)     // получает все изминения для конкретного changeSet
 	ChangedRows(currentFielUrl string, PreviusFileUrl string) (int, int) // Принимает ссылки на разные версии файлов возвращает Добавленные и Удаленные строки
 }
 
@@ -40,6 +41,10 @@ func NewAzure(config *config) *Azure {
 	return &Azure{
 		Config: config,
 	}
+}
+
+func (a *Azure) Azure() *Azure {
+	return a
 }
 
 func (a *Azure) Connect() {
@@ -112,4 +117,8 @@ func (a *Azure) GetChangesetChanges(id *int, project string) (*ChangeSet, error)
 	}
 	// fmt.Println(changesHash.Value[0].Item["hashValue"])
 	return commit, nil
+}
+
+func (a *Azure) ChangedRows(currentFielUrl string, PreviusFileUrl string) (int, int) {
+	return 0, 0
 }
