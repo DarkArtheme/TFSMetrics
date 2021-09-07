@@ -2,15 +2,16 @@ package azure
 
 import (
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
-	"github.com/microsoft/azure-devops-go-api/azuredevops/core"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/tfvc"
 )
 
 type AzureClientInterface interface {
 	Connect(config config) error
+	GetChangesets()
 }
 
 type Client struct {
-	Client *core.Client
+	Client *tfvc.Client
 }
 
 func NewClient() *Client {
@@ -25,7 +26,7 @@ func (ac *Client) Connect(config config) error {
 
 	ctx := config.Context
 
-	coreClient, err := core.NewClient(ctx, connection)
+	coreClient, err := tfvc.NewClient(ctx, connection)
 	if err != nil {
 		return err
 	}
