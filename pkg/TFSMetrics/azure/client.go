@@ -32,12 +32,12 @@ type ChangeSet struct {
 }
 
 type Azure struct {
-	Config     *config
+	Config     *Config
 	Connection *azuredevops.Connection
 	TfvcClient tfvc.Client
 }
 
-func NewAzure(config *config) *Azure {
+func NewAzure(config *Config) *Azure {
 	return &Azure{
 		Config: config,
 	}
