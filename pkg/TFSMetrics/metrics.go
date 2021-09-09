@@ -61,11 +61,11 @@ func (i *iterator) Next() (*Commit, error) {
 		}
 		i.index++
 		return &Commit{
-			Author:      changeSet.Author,
+			Author:      changeSet.Author,  	// обязательное поле
 			Email:       changeSet.Email,
-			AddedRows:   changeSet.AddedRows,
-			DeletedRows: changeSet.DeletedRows,
-			Date:        changeSet.Date,
+			AddedRows:   changeSet.AddedRows,	// обязательное поле
+			DeletedRows: changeSet.DeletedRows,	// обязательное поле
+			Date:        changeSet.Date,		// обязательное поле
 			Message:     changeSet.Message,
 			Hash:        changeSet.Hash,
 		}, nil

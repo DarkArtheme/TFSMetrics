@@ -59,6 +59,7 @@ func CreateMetricsApp(prjPath string) *cli.App {
 					config.Token = token
 				}
 				err = WriteConfigFile(filePath, config)
+				fmt.Printf("Current config:\n\nURL: %s\nToken: %s\n", config.OrganizationUrl, config.Token)
 				return err
 			},
 		},
