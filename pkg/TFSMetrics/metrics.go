@@ -16,11 +16,11 @@ type CommitIterator interface {
 }
 
 type Commit struct {
-	Author      string
+	Author      string		// обязательное поле
 	Email       string
-	AddedRows   int
-	DeletedRows int
-	Date        time.Time
+	AddedRows   int			// обязательное поле
+	DeletedRows int			// обязательное поле
+	Date        time.Time	// обязательное поле
 	Message     string
 	Hash        string
 }
@@ -61,11 +61,11 @@ func (i *iterator) Next() (*Commit, error) {
 		}
 		i.index++
 		return &Commit{
-			Author:      changeSet.Author,  	// обязательное поле
+			Author:      changeSet.Author,
 			Email:       changeSet.Email,
-			AddedRows:   changeSet.AddedRows,	// обязательное поле
-			DeletedRows: changeSet.DeletedRows,	// обязательное поле
-			Date:        changeSet.Date,		// обязательное поле
+			AddedRows:   changeSet.AddedRows,
+			DeletedRows: changeSet.DeletedRows,
+			Date:        changeSet.Date,
 			Message:     changeSet.Message,
 			Hash:        changeSet.Hash,
 		}, nil
