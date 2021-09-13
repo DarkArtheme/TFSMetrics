@@ -1,6 +1,7 @@
 package cli_metrics
 
 import (
+	"errors"
 	"fmt"
 	"github.com/urfave/cli/v2"
 	tfsmetrics "go-marathon-team-3/pkg/TFSMetrics"
@@ -13,6 +14,8 @@ import (
 )
 
 func CreateMetricsApp(prjPath string) *cli.App {
+	var azureClient *azure.Azure
+	isConnected := false
 	app := cli.NewApp()
 	app.Name = "cli-metrics"
 	app.Usage = "CLI для взаимодействия с библиотекой"
@@ -20,6 +23,7 @@ func CreateMetricsApp(prjPath string) *cli.App {
 	//	fmt.Println("Hello, team 3!")
 	//	return nil
 	//}
+	app.EnableBashCompletion = true
 	app.Version = "0.01"
 	app.Authors = []*cli.Author {
 		{ Name: "Андрей Назаренко" },
@@ -61,7 +65,7 @@ func CreateMetricsApp(prjPath string) *cli.App {
 					config.Token = token
 				}
 				err = WriteConfigFile(filePath, config)
-				fmt.Printf("Current config:\n\nURL: %s\nToken: %s\n", config.OrganizationUrl, config.Token)
+				fmt.Printf("Current config:\nURL: %s\nToken: %s\n", config.OrganizationUrl, config.Token)
 				return err
 			},
 		},
@@ -74,6 +78,34 @@ func CreateMetricsApp(prjPath string) *cli.App {
 				for _, commit := range *commits {
 					printFullCommit(&commit)
 				}
+				return nil
+			},
+		},
+		{
+			Name: "connect",
+			Aliases: []string{},
+			Usage: "подключение к TFS-репозиторию",
+			Action: func(context *cli.Context) error {
+				filePath := path.Join(prjPath, "configs/config.yaml")
+				config, err := ReadConfigFile(filePath)
+				if err != nil {
+					return err
+				}
+				if config.OrganizationUrl == "" && config.Token == "" {
+					return errors.New("отсутствуют параметры подключения (cli-metrics config)")
+				} else if config.OrganizationUrl == "" {
+					return errors.New("отсутствует url подключения (cli-metrics config --url)")
+				} else if config.Token == "" {
+					return errors.New("отсутствует token подключения (cli-metrics config --token)")
+				}
+				azureClient = azure.NewAzure(config)
+				azureClient.Connect()
+				err = azureClient.TfvcClientConnection()
+				if err != nil {
+					return err
+				}
+				isConnected = true
+				fmt.Println("Успешное подключение")
 				return nil
 			},
 		},
