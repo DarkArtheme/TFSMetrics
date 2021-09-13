@@ -19,7 +19,7 @@ type AzureInterface interface {
 
 	GetChangesets(nameOfProject string) ([]*int, error)                  // Получает все id ченджсетов проекта
 	GetChangesetChanges(id *int, project string) (*ChangeSet, error)     // получает все изминения для конкретного changeSet
-	GetItemVersions(ChangesUrl string) (int, int)                        // Находит искомую и предыдущую персию файла, возвращает их юрл'ы
+	GetItemVersions(ChangesUrl string) (int, int)                        // Находит искомую и предыдущую версию файла, возвращает их юрл'ы
 	ChangedRows(currentFielUrl string, PreviusFileUrl string) (int, int) // Принимает ссылки на разные версии файлов возвращает Добавленные и Удаленные строки
 }
 
@@ -182,7 +182,7 @@ func (a *Azure) ChangedRows(currentFileUrl string, PreviusFileUrl string) (int, 
 	deletedRows := 0
 	allRows := 0
 
-	//Считать хэши строк или напрямую сравнивать строкуи из CurrentFileData и PreviusFileData
+	//Считать хэши строк или напрямую сравнивать строкуи из CurrentFileData и PreviusFileData??????
 
 	addedRows := allRows - savedRows
 
