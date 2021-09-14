@@ -106,6 +106,11 @@ func CreateMetricsApp(prjPath string) *cli.App {
 				}
 				isConnected = true
 				fmt.Println("Успешное подключение")
+				projectNames, err := azureClient.ListOfProjects()
+				fmt.Println("Доступны следующие проекты:")
+				for _, project := range projectNames {
+					fmt.Println(*project)
+				}
 				return nil
 			},
 		},
@@ -114,9 +119,22 @@ func CreateMetricsApp(prjPath string) *cli.App {
 	return app
 }
 
+func exists(path string) (bool, error) {
+	_, err := os.Stat(path)
+	if err == nil { return true, nil }
+	if os.IsNotExist(err) { return false, nil }
+	return false, err
+}
 
 func ReadConfigFile(filePath string) (config *azure.Config, err error) {
 	config = azure.NewConfig()
+	ex, _ := exists(filePath)
+	if !ex {
+		output, _ := os.Create(filePath)
+		defer output.Close()
+		yamlEncoder := yaml.NewEncoder(output)
+		err = yamlEncoder.Encode(config)
+	}
 	data, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		return

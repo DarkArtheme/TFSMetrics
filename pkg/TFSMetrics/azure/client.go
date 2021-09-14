@@ -20,7 +20,7 @@ type AzureInterface interface {
 	GetChangesets(nameOfProject string) ([]*int, error)                  // Получает все id ченджсетов проекта
 	GetChangesetChanges(id *int, project string) (*ChangeSet, error)     // получает все изминения для конкретного changeSet
 	GetItemVersions(ChangesUrl string) (int, int)                        // Находит искомую и предыдущую версию файла, возвращает их юрл'ы
-	ChangedRows(currentFielUrl string, PreviusFileUrl string) (int, int) // Принимает ссылки на разные версии файлов возвращает Добавленные и Удаленные строки
+	ChangedRows(currentFileUrl string, PreviousFileUrl string) (int, int, error) // Принимает ссылки на разные версии файлов возвращает Добавленные и Удаленные строки
 }
 
 type ChangeSet struct {
@@ -123,7 +123,7 @@ func (a *Azure) GetChangesetChanges(id *int, project string) (*ChangeSet, error)
 	return commit, nil
 }
 
-func (a *Azure) ChangedRows(currentFileUrl string, PreviusFileUrl string) (int, int, error) {
+func (a *Azure) ChangedRows(currentFileUrl string, PreviousFileUrl string) (int, int, error) {
 
 	//TODO: РАЗБИТЬ МЕТОД НА НЕСКОЛЬКО МАЛЕНЬКИХ
 
@@ -149,7 +149,7 @@ func (a *Azure) ChangedRows(currentFileUrl string, PreviusFileUrl string) (int, 
 	}
 	defer resp1.Body.Close()
 
-	resp2, err := http.Get(PreviusFileUrl) //получаем предыдущий файл
+	resp2, err := http.Get(PreviousFileUrl) //получаем предыдущий файл
 	if err != nil {
 		return 0, 0, err
 	}
@@ -187,4 +187,9 @@ func (a *Azure) ChangedRows(currentFileUrl string, PreviusFileUrl string) (int, 
 	addedRows := allRows - savedRows
 
 	return addedRows, deletedRows, err
+}
+
+// заглушка чтобы избавиться от ошибки нереализованного интерфейса
+func (a *Azure) GetItemVersions(ChangesUrl string) (int, int) {
+	return 0, 0
 }
