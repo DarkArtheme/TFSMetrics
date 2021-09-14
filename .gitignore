@@ -30,3 +30,6 @@
 # CMake
 cmake-build-*/
 .vscode/
+
+# config.yaml
+configs/config.yaml

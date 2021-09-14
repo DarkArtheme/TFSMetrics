@@ -16,11 +16,11 @@ type CommitIterator interface {
 }
 
 type Commit struct {
-	Author      string		// обязательное поле
+	Author      string			// обязательное поле
 	Email       string
-	AddedRows   int			// обязательное поле
-	DeletedRows int			// обязательное поле
-	Date        time.Time	// обязательное поле
+	AddedRows   int				// обязательное поле
+	DeletedRows int				// обязательное поле
+	Date        time.Time		// обязательное поле
 	Message     string
 	Hash        string
 }
