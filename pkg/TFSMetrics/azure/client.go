@@ -1,6 +1,9 @@
 package azure
 
 import (
+	"io"
+	"net/http"
+	"os"
 	"time"
 
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
@@ -16,6 +19,7 @@ type AzureInterface interface {
 
 	GetChangesets(nameOfProject string) ([]*int, error)                  // Получает все id ченджсетов проекта
 	GetChangesetChanges(id *int, project string) (*ChangeSet, error)     // получает все изминения для конкретного changeSet
+	GetItemVersions(ChangesUrl string) (int, int)                        // Находит искомую и предыдущую версию файла, возвращает их юрл'ы
 	ChangedRows(currentFielUrl string, PreviusFileUrl string) (int, int) // Принимает ссылки на разные версии файлов возвращает Добавленные и Удаленные строки
 }
 
@@ -119,6 +123,68 @@ func (a *Azure) GetChangesetChanges(id *int, project string) (*ChangeSet, error)
 	return commit, nil
 }
 
-func (a *Azure) ChangedRows(currentFielUrl string, PreviusFileUrl string) (int, int) {
-	return 0, 0
+func (a *Azure) ChangedRows(currentFileUrl string, PreviusFileUrl string) (int, int, error) {
+
+	//TODO: РАЗБИТЬ МЕТОД НА НЕСКОЛЬКО МАЛЕНЬКИХ
+
+	//1) СКАЧИВАНИЕ ФАЙЛОВ
+	filepath1 := ""
+	filepath2 := ""
+
+	out1, err := os.Create(filepath1) //создание нового файла для currentFielUrl
+	if err != nil {
+		return 0, 0, err
+	}
+	defer out1.Close()
+
+	out2, err := os.Create(filepath2) //создание нового файла для PreviusFileUrl
+	if err != nil {
+		return 0, 0, err
+	}
+	defer out2.Close()
+
+	resp1, err := http.Get(currentFileUrl) //получаем актуальный файл
+	if err != nil {
+		return 0, 0, err
+	}
+	defer resp1.Body.Close()
+
+	resp2, err := http.Get(PreviusFileUrl) //получаем предыдущий файл
+	if err != nil {
+		return 0, 0, err
+	}
+	defer resp2.Body.Close()
+
+	_, err = io.Copy(out1, resp1.Body) //файл для currentFiel записан
+	if err != nil {
+		return 0, 0, err
+	}
+
+	_, err = io.Copy(out2, resp2.Body) //файл PreviusFile записан
+	if err != nil {
+		return 0, 0, err
+	}
+
+	//2) ОТКРЫТИЕ ФАЙЛОВ
+
+	//CurrentFileData, err := ioutil.ReadFile(filepath1)
+	//if err != nil {
+	//	return 0, 0, err
+	//}
+
+	//PreviusFileData, err := ioutil.ReadFile(filepath2)
+	//if err != nil {
+	//	return 0, 0, err
+	//}
+
+	//3) ОПРЕДЕЛЕНИЕ КОЛЛИЧЕСТВА СТРОК
+	savedRows := 0
+	deletedRows := 0
+	allRows := 0
+
+	//Считать хэши строк или напрямую сравнивать строкуи из CurrentFileData и PreviusFileData??????
+
+	addedRows := allRows - savedRows
+
+	return addedRows, deletedRows, err
 }
