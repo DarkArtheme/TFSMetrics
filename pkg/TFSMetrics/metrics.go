@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+var errNoMoreItems error = errors.New("no more items")
+
 type Repository interface {
 	Open() error // вызываем azure.TfvcClientConnection()
 	GetCommitIterator() (CommitIterator, error)
@@ -71,5 +73,5 @@ func (i *iterator) Next() (*Commit, error) {
 			Hash:        changeSet.Hash,
 		}, nil
 	}
-	return &Commit{}, errors.New("no more items")
+	return &Commit{}, errNoMoreItems
 }
