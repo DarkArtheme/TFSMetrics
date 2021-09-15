@@ -6,7 +6,7 @@ import (
 	bolt "go.etcd.io/bbolt"
 )
 
-type DataBase interface {
+type Store interface {
 	Open() error
 	Close()
 	FindOne(id int) (*tfsmetrics.Commit, error)
@@ -16,7 +16,7 @@ type DataBase interface {
 
 type DB struct {
 	db        *bolt.DB
-	batch     *[]tfsmetrics.Commit
+	batch     []*tfsmetrics.Commit
 	batchSize int
 }
 

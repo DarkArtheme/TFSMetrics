@@ -3,7 +3,6 @@ package tfsmetrics
 import (
 	"fmt"
 	"go-marathon-team-3/pkg/TFSMetrics/azure"
-	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -20,18 +19,18 @@ func Test_commitsCollection_Open(t *testing.T) {
 	projects, err := azure.ListOfProjects()
 	require.NoError(t, err)
 
-	var wg sync.WaitGroup
-	commitChan := make(chan Commit)
-	stopChan := make(chan struct{})
+	// var wg sync.WaitGroup
+	// commitChan := make(chan Commit)
 
-	go func() {
-		a := []Commit{}
-		for {
-			c := <-commitChan
-			a = append(a, c)
-			fmt.Println(c)
-		}
-	}()
+	// go func() {
+	// 	wg.Add(1)
+	// 	a := []Commit{}
+	// 	for {
+	// 		c := <-commitChan
+	// 		a = append(a, c)
+	// 		fmt.Println(c)
+	// 	}
+	// }()
 
 	for _, project := range projects {
 		commmits := &commitsCollection{
@@ -43,31 +42,36 @@ func Test_commitsCollection_Open(t *testing.T) {
 		iter, err := commmits.GetCommitIterator()
 		require.NoError(t, err)
 
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			for {
-				select {
-				case <-stopChan:
-					return
-				default:
-					go func() {
-						commit, err := iter.Next()
-						if err != nil {
-							stopChan <- struct{}{}
-							return
-						}
-						commitChan <- *commit
-					}()
-				}
+		for commit, err := iter.Next(); err == nil; commit, err = iter.Next() {
+			fmt.Println(commit)
+		}
 
-			}
-		}()
-		wg.Wait()
+		// stopChan := make(chan struct{})
+		// stop := false
+		// wg.Add(1)
+		// go func() {
+		// 	defer wg.Done()
+		// 	for {
+		// 		select {
+		// 		case <-stopChan:
+		// 			return
+		// 		default:
+		// 			go func(stop *bool) {
+		// 				commit, err := iter.Next()
+		// 				if err != nil {
+		// 					if !*stop {
+		// 						*stop = false
+		// 						stopChan <- struct{}{}
+		// 						return
+		// 					}
+		// 					return
+		// 				}
+		// 				commitChan <- *commit
+		// 			}(&stop)
+		// 		}
+		// 	}
+		// }()
+		// wg.Wait()
 	}
-	// for commit, err := iter.Next(); err == nil; commit, err = iter.Next() {
-	// 	fmt.Println(commit)
-	// }
 
-	wg.Wait()
 }
