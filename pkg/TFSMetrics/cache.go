@@ -30,7 +30,8 @@ type storeIterator struct {
 	index int
 	ids   []int
 
-	store Store
+	projectName string
+	store       Store
 }
 
 func NewStoreIterator(commit *Commit, store Store) CommitIterator {
@@ -51,7 +52,7 @@ func NewStoreIterator(commit *Commit, store Store) CommitIterator {
 func (si *storeIterator) Next() (*Commit, error) {
 	if si.index < len(si.ids) {
 		si.index++
-		commit, err := si.store.FindOne(si.ids[si.index-1])
+		commit, err := si.store.FindOne(si.ids[si.index-1], si.projectName)
 		if err != nil {
 			return nil, err
 		}
