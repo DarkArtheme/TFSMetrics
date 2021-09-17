@@ -10,6 +10,13 @@ type repositoryCache struct {
 	store Store
 }
 
+func NewCacher(projectName string) Cacher {
+	store := NewStore(projectName)
+	return &repositoryCache{
+		store: store,
+	}
+}
+
 func (rc *repositoryCache) Cache(iterator CommitIterator) (CommitIterator, error) {
 	commit, err := iterator.Next()
 	if err != nil {
@@ -30,8 +37,7 @@ type storeIterator struct {
 	index int
 	ids   []int
 
-	projectName string
-	store       Store
+	store Store
 }
 
 func NewStoreIterator(commit *Commit, store Store) CommitIterator {
@@ -52,7 +58,7 @@ func NewStoreIterator(commit *Commit, store Store) CommitIterator {
 func (si *storeIterator) Next() (*Commit, error) {
 	if si.index < len(si.ids) {
 		si.index++
-		commit, err := si.store.FindOne(si.ids[si.index-1], si.projectName)
+		commit, err := si.store.FindOne(si.ids[si.index-1])
 		if err != nil {
 			return nil, err
 		}

@@ -11,15 +11,19 @@ import (
 type Store interface {
 	Open() error
 	Close() error
-	FindOne(id int, prName string) (*Commit, error)
+	FindOne(id int) (*Commit, error)
 	Write(commit *Commit) error
-	WriteBatch() error
 }
 
 type DB struct {
-	db        *bolt.DB
-	batch     []*Commit
-	batchSize int
+	db          *bolt.DB
+	projectName string
+}
+
+func NewStore(pn string) Store {
+	return &DB{
+		projectName: pn,
+	}
 }
 
 func (db *DB) Open() error {
@@ -36,17 +40,10 @@ func (db *DB) Close() error {
 	return db.db.Close()
 }
 
-func (db *DB) FindOne(id int, prName string) (*Commit, error) {
-	if len(db.batch) != 0 {
-		for _, v := range db.batch {
-			if v.Id == id {
-				return v, nil
-			}
-		}
-	}
+func (db *DB) FindOne(id int) (*Commit, error) {
 	res := &Commit{}
 	err := db.db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(prName))
+		b := tx.Bucket([]byte(db.projectName))
 		v := b.Get(itob(id))
 
 		if v == nil {
@@ -64,16 +61,23 @@ func (db *DB) FindOne(id int, prName string) (*Commit, error) {
 }
 
 func (db *DB) Write(commit *Commit) error {
-	db.batch = append(db.batch, commit)
-	if len(db.batch) == db.batchSize {
-		if err := db.WriteBatch(); err != nil {
+	err := db.db.Update(func(tx *bolt.Tx) error {
+		b, err := tx.CreateBucketIfNotExists([]byte(db.projectName))
+		if err != nil {
 			return err
 		}
-	}
-	return nil
-}
 
-func (db *DB) WriteBatch() error {
+		buf, err := json.Marshal(commit)
+		if err != nil {
+			return err
+		}
+
+		return b.Put(itob(commit.Id), buf)
+	})
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
