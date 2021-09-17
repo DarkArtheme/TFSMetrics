@@ -27,7 +27,7 @@ func NewStore(pn string) Store {
 }
 
 func (db *DB) Open() error {
-	bolt, err := bolt.Open("assets/statistics.db", 0600, nil)
+	bolt, err := bolt.Open("assets", 0600, nil)
 	if err != nil {
 		return err
 	}
