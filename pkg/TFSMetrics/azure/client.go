@@ -19,9 +19,9 @@ type AzureInterface interface {
 	TfvcClientConnection() error        // для Repository.Open()
 	ListOfProjects() ([]*string, error) // Получаем список проектов
 
-	GetChangesets(nameOfProject string) ([]*int, error)                  // Получает все id ченджсетов проекта
-	GetChangesetChanges(id *int, project string) (*ChangeSet, error)     // получает все изминения для конкретного changeSet
-	GetItemVersions(ChangesUrl string) (int, int)                        // Находит искомую и предыдущую версию файла, возвращает их юрл'ы
+	GetChangesets(nameOfProject string) ([]*int, error)                          // Получает все id ченджсетов проекта
+	GetChangesetChanges(id *int, project string) (*ChangeSet, error)             // получает все изминения для конкретного changeSet
+	GetItemVersions(ChangesUrl string) (int, int)                                // Находит искомую и предыдущую версию файла, возвращает их юрл'ы
 	ChangedRows(currentFileUrl string, PreviousFileUrl string) (int, int, error) // Принимает ссылки на разные версии файлов возвращает Добавленные и Удаленные строки
 }
 
@@ -100,10 +100,6 @@ func (a *Azure) GetChangesets(nameOfProject string) ([]*int, error) {
 }
 
 func (a *Azure) GetChangesetChanges(id *int, project string) (*ChangeSet, error) {
-	// changesHash, err := a.TfvcClient.GetChangesetChanges(a.config.Context, tfvc.GetChangesetChangesArgs{Id: id})
-	// if err != nil {
-	// 	return &tfsmetrics.Commit{}, err
-	// }
 	changes, err := a.TfvcClient.GetChangeset(a.Config.Context, tfvc.GetChangesetArgs{Id: id, Project: &project})
 	if err != nil {
 		return &ChangeSet{}, err
@@ -112,6 +108,12 @@ func (a *Azure) GetChangesetChanges(id *int, project string) (*ChangeSet, error)
 	if changes.Comment != nil {
 		messg = *changes.Comment
 	}
+
+	changesHash, err := a.TfvcClient.GetChangesetChanges(a.Config.Context, tfvc.GetChangesetChangesArgs{Id: id})
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println(changesHash.Value[0].Item.(map[string]interface{})["url"].(string))
 
 	commit := &ChangeSet{
 		ProjectName: project,
