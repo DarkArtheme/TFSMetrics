@@ -25,4 +25,10 @@ func TestAzure_GetChangesetChanges(t *testing.T) {
 		}
 	}
 
+	file123456789 := "https://dev.azure.com/GnivcTestTaskTeam3/Project1/_versionControl?path=%24/Project1/123456789"
+	file123 := "https://dev.azure.com/GnivcTestTaskTeam3/Project1/_versionControl?path=%24/Project1/123"
+	addedRows, deletedRows, err := azure.ChangedRows(file123, file123456789)
+	assert.NoError(t, err)
+	assert.Equal(t, 0, addedRows)
+	assert.Equal(t, 0, deletedRows)
 }

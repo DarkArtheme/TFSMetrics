@@ -1,7 +1,9 @@
 package azure
 
 import (
+	"fmt"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"os"
 	"time"
@@ -128,8 +130,8 @@ func (a *Azure) ChangedRows(currentFileUrl string, PreviousFileUrl string) (int,
 	//TODO: РАЗБИТЬ МЕТОД НА НЕСКОЛЬКО МАЛЕНЬКИХ
 
 	//1) СКАЧИВАНИЕ ФАЙЛОВ
-	filepath1 := ""
-	filepath2 := ""
+	filepath1 := "currentFileUrl"
+	filepath2 := "PreviousFileUrl"
 
 	out1, err := os.Create(filepath1) //создание нового файла для currentFielUrl
 	if err != nil {
@@ -167,16 +169,17 @@ func (a *Azure) ChangedRows(currentFileUrl string, PreviousFileUrl string) (int,
 
 	//2) ОТКРЫТИЕ ФАЙЛОВ
 
-	//CurrentFileData, err := ioutil.ReadFile(filepath1)
-	//if err != nil {
-	//	return 0, 0, err
-	//}
+	CurrentFileData, err := ioutil.ReadFile(filepath1)
+	if err != nil {
+		return 0, 0, err
+	}
 
 	//PreviusFileData, err := ioutil.ReadFile(filepath2)
 	//if err != nil {
 	//	return 0, 0, err
 	//}
 
+	fmt.Println(string(CurrentFileData))
 	//3) ОПРЕДЕЛЕНИЕ КОЛЛИЧЕСТВА СТРОК
 	savedRows := 0
 	deletedRows := 0
