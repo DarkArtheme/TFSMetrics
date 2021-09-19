@@ -27,7 +27,7 @@ func NewStore(pn string) Store {
 }
 
 func (db *DB) Open() error {
-	bolt, err := bolt.Open("assets", 0600, nil)
+	bolt, err := bolt.Open("assets.db", 0600, nil)
 	if err != nil {
 		return err
 	}
@@ -65,6 +65,11 @@ func (db *DB) Write(commit *Commit) error {
 		b, err := tx.CreateBucketIfNotExists([]byte(db.projectName))
 		if err != nil {
 			return err
+		}
+		v := b.Get(itob(commit.Id))
+
+		if v != nil {
+			return nil
 		}
 
 		buf, err := json.Marshal(commit)

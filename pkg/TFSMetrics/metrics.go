@@ -64,6 +64,7 @@ func (i *iterator) Next() (*Commit, error) {
 			return nil, err
 		}
 		return &Commit{
+			Id:          changeSet.Id,
 			Author:      changeSet.Author,
 			Email:       changeSet.Email,
 			AddedRows:   changeSet.AddedRows,

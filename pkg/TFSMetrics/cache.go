@@ -1,6 +1,13 @@
 package tfsmetrics
 
+import (
+	"log"
+	"sync"
+	"time"
+)
+
 var idChan chan int = make(chan int, 10)
+var wg sync.WaitGroup = sync.WaitGroup{}
 
 type Cacher interface {
 	Cache(iterator CommitIterator) (CommitIterator, error)
@@ -10,12 +17,10 @@ type repositoryCache struct {
 	store Store
 }
 
-func NewCacher(projectName string) (Cacher, error) {
-	store := NewStore(projectName)
-	err := store.Open()
+func NewCacher(projectName string, store Store) Cacher {
 	return &repositoryCache{
 		store: store,
-	}, err
+	}
 }
 
 func (rc *repositoryCache) Cache(iterator CommitIterator) (CommitIterator, error) {
@@ -25,10 +30,16 @@ func (rc *repositoryCache) Cache(iterator CommitIterator) (CommitIterator, error
 	}
 	rc.store.Write(commit)
 	storeIterator := NewStoreIterator(commit, rc.store)
+	wg.Add(1)
 	go func() {
+		defer wg.Done()
 		for commit, err := iterator.Next(); err == nil; commit, err = iterator.Next() {
+			err := rc.store.Write(commit)
+			if err != nil {
+				log.Panic(err)
+				return
+			}
 			idChan <- commit.Id
-			rc.store.Write(commit)
 		}
 	}()
 	return storeIterator, nil
@@ -57,6 +68,19 @@ func NewStoreIterator(commit *Commit, store Store) CommitIterator {
 }
 
 func (si *storeIterator) Next() (*Commit, error) {
+	for i := 0; i < 3; i++ {
+		if si.index < len(si.ids) {
+			si.index++
+			commit, err := si.store.FindOne(si.ids[si.index-1])
+			if err != nil {
+				return nil, err
+			}
+			return commit, nil
+		} else {
+			time.Sleep(time.Millisecond * 500)
+		}
+	}
+	wg.Wait()
 	if si.index < len(si.ids) {
 		si.index++
 		commit, err := si.store.FindOne(si.ids[si.index-1])
