@@ -19,10 +19,7 @@ func Test_commitsCollection_Open(t *testing.T) {
 	projects, _ := azure.ListOfProjects()
 
 	for _, project := range projects {
-		commmits := &commitsCollection{
-			nameOfProject: *project,
-			azure:         azure,
-		}
+		commmits := NewCommitCollection(*project, azure)
 		iter, err := commmits.GetCommitIterator()
 		require.NoError(t, err)
 		for commit, err := iter.Next(); err == nil; commit, err = iter.Next() {
