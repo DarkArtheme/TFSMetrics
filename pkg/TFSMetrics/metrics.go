@@ -73,5 +73,5 @@ func (i *iterator) Next() (*Commit, error) {
 			Hash:        changeSet.Hash,
 		}, nil
 	}
-	return &Commit{}, errNoMoreItems
+	return nil, errNoMoreItems
 }

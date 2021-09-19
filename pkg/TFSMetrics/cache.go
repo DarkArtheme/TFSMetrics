@@ -10,11 +10,12 @@ type repositoryCache struct {
 	store Store
 }
 
-func NewCacher(projectName string) Cacher {
+func NewCacher(projectName string) (Cacher, error) {
 	store := NewStore(projectName)
+	err := store.Open()
 	return &repositoryCache{
 		store: store,
-	}
+	}, err
 }
 
 func (rc *repositoryCache) Cache(iterator CommitIterator) (CommitIterator, error) {

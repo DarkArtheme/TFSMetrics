@@ -7,15 +7,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"go.etcd.io/bbolt"
 )
 
 func TestDB_FindOne(t *testing.T) {
-	store := DB{
-		db:          &bbolt.DB{},
-		projectName: "project1",
-	}
-	err := store.Open()
+	store, err := TestStore()
 	require.NoError(t, err)
 	defer store.Close()
 	defer func() {
@@ -70,11 +65,7 @@ func TestDB_FindOne(t *testing.T) {
 }
 
 func TestDB_Write(t *testing.T) {
-	store := DB{
-		db:          &bbolt.DB{},
-		projectName: "project1",
-	}
-	err := store.Open()
+	store, err := TestStore()
 	require.NoError(t, err)
 	defer store.Close()
 	defer func() {
