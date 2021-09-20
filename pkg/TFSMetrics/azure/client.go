@@ -2,6 +2,7 @@ package azure
 
 import (
 	"fmt"
+	"io/ioutil"
 	"net/http"
 	"time"
 
@@ -126,21 +127,26 @@ func (a *Azure) GetChangesetChanges(id *int, project string) (*ChangeSet, error)
 
 func (a *Azure) ChangedRows(currentFileUrl string, PreviousFileUrl string) (int, int, error) {
 	//СКАЧИВАНИЕ ФАЙЛОВ
-	current, err := http.Get(currentFileUrl) //скачиваем актуальный файл
+	responseCurrentFile, err := http.Get(currentFileUrl) //скачиваем актуальный файл
 	if err != nil {
 		return 0, 0, err
 	}
-	defer current.Body.Close()
+	defer responseCurrentFile.Body.Close()
 
-	previous, err := http.Get(PreviousFileUrl) //скачиваем предыдущий файл
+	responsePreviousFile, err := http.Get(PreviousFileUrl) //скачиваем предыдущий файл
 	if err != nil {
 		return 0, 0, err
 	}
-	defer previous.Body.Close()
+	defer responsePreviousFile.Body.Close()
 
-	//что мы получаем?
-	fmt.Println(current)
-	fmt.Println(previous)
+	//переводим ответ в массив байт
+	responseCurrentByte, err := ioutil.ReadAll(responseCurrentFile.Body)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	//вывести результат
+	fmt.Println((string(responseCurrentByte)))
 
 	//ОПРЕДЕЛЕНИЕ КОЛЛИЧЕСТВА СТРОК
 	savedRows := 0
