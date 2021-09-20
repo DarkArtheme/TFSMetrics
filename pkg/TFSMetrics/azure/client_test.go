@@ -9,7 +9,7 @@ import (
 
 func TestAzure_GetChangesetChanges(t *testing.T) {
 	conf := NewConfig()
-	conf.OrganizationUrl = "https://dev.azure.com/GnivcTestTaskTeam3"
+	conf.OrganizationUrl = "https://dev.azure.com/GnivcTestTaskTeam3"	
 	conf.Token = "yem42urypxdzuhceovddboakqs7skiicinze2i2u2leqrvbgblcq"
 
 	azure := NewAzure(conf)
@@ -24,11 +24,26 @@ func TestAzure_GetChangesetChanges(t *testing.T) {
 			fmt.Println(azure.GetChangesetChanges(v, *p))
 		}
 	}
+}
 
-	// file123456789 := "https://dev.azure.com/GnivcTestTaskTeam3/Project1/_versionControl?path=%24/Project1/123456789"
-	// file123 := "https://dev.azure.com/GnivcTestTaskTeam3/Project1/_versionControl?path=%24/Project1/123"
-	// addedRows, deletedRows, err := azure.ChangedRows(file123, file123456789)
-	// assert.NoError(t, err)
-	// assert.Equal(t, 0, addedRows)
-	// assert.Equal(t, 0, deletedRows)
+func TestAzure_ChangedRows(t *testing.T) {
+	conf := NewConfig()
+	conf.OrganizationUrl = "https://dev.azure.com/GnivcTestTaskTeam3"
+	conf.Token = "yem42urypxdzuhceovddboakqs7skiicinze2i2u2leqrvbgblcq"
+
+	azure := NewAzure(conf)
+	azure.Connect()
+	azure.TfvcClientConnection()
+
+	//ссылки на файлы
+	currentFileUrl := "https://dev.azure.com/GnivcTestTaskTeam3/_apis/tfvc/items/$/Project2/test.txt?versionType=Changeset&version=18"
+	previousFileUrl := "https://dev.azure.com/GnivcTestTaskTeam3/_apis/tfvc/items/$/Project2/test.txt?versionType=Changeset&version=17"
+
+	//получаем результат работы функции
+	addedRows, deletedRows, err := azure.ChangedRows(currentFileUrl, previousFileUrl)
+
+	//проверки
+	assert.NoError(t, err)
+	assert.Equal(t, 0, addedRows)
+	assert.Equal(t, 0, deletedRows)
 }

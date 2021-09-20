@@ -2,10 +2,7 @@ package azure
 
 import (
 	"fmt"
-	"io"
-	"io/ioutil"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
@@ -128,61 +125,24 @@ func (a *Azure) GetChangesetChanges(id *int, project string) (*ChangeSet, error)
 }
 
 func (a *Azure) ChangedRows(currentFileUrl string, PreviousFileUrl string) (int, int, error) {
-
-	//TODO: РАЗБИТЬ МЕТОД НА НЕСКОЛЬКО МАЛЕНЬКИХ
-
-	//1) СКАЧИВАНИЕ ФАЙЛОВ
-	filepath1 := "currentFileUrl"
-	filepath2 := "PreviousFileUrl"
-
-	out1, err := os.Create(filepath1) //создание нового файла для currentFielUrl
+	//СКАЧИВАНИЕ ФАЙЛОВ
+	current, err := http.Get(currentFileUrl) //скачиваем актуальный файл
 	if err != nil {
 		return 0, 0, err
 	}
-	defer out1.Close()
+	defer current.Body.Close()
 
-	out2, err := os.Create(filepath2) //создание нового файла для PreviusFileUrl
+	previous, err := http.Get(PreviousFileUrl) //скачиваем предыдущий файл
 	if err != nil {
 		return 0, 0, err
 	}
-	defer out2.Close()
+	defer previous.Body.Close()
 
-	resp1, err := http.Get(currentFileUrl) //получаем актуальный файл
-	if err != nil {
-		return 0, 0, err
-	}
-	defer resp1.Body.Close()
+	//что мы получаем?
+	fmt.Println(current)
+	fmt.Println(previous)
 
-	resp2, err := http.Get(PreviousFileUrl) //получаем предыдущий файл
-	if err != nil {
-		return 0, 0, err
-	}
-	defer resp2.Body.Close()
-
-	_, err = io.Copy(out1, resp1.Body) //файл для currentFiel записан
-	if err != nil {
-		return 0, 0, err
-	}
-
-	_, err = io.Copy(out2, resp2.Body) //файл PreviusFile записан
-	if err != nil {
-		return 0, 0, err
-	}
-
-	//2) ОТКРЫТИЕ ФАЙЛОВ
-
-	CurrentFileData, err := ioutil.ReadFile(filepath1)
-	if err != nil {
-		return 0, 0, err
-	}
-
-	//PreviusFileData, err := ioutil.ReadFile(filepath2)
-	//if err != nil {
-	//	return 0, 0, err
-	//}
-
-	fmt.Println(string(CurrentFileData))
-	//3) ОПРЕДЕЛЕНИЕ КОЛЛИЧЕСТВА СТРОК
+	//ОПРЕДЕЛЕНИЕ КОЛЛИЧЕСТВА СТРОК
 	savedRows := 0
 	deletedRows := 0
 	allRows := 0
