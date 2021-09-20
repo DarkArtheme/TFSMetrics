@@ -2,7 +2,6 @@ package azure
 
 import (
 	"fmt"
-	"io/ioutil"
 	"net/http"
 	"time"
 
@@ -133,6 +132,12 @@ func (a *Azure) ChangedRows(currentFileUrl string, PreviousFileUrl string) (int,
 	}
 	defer responseCurrentFile.Body.Close()
 
+	changesHash, err := a.TfvcClient.GetItem(a.Config.Context, tfvc.GetItemArgs{Path: &currentFileUrl})
+	if err != nil {
+		fmt.Println("err GetItemArgs")
+	}
+	fmt.Println("TEST", changesHash)
+
 	responsePreviousFile, err := http.Get(PreviousFileUrl) //скачиваем предыдущий файл
 	if err != nil {
 		return 0, 0, err
@@ -140,13 +145,13 @@ func (a *Azure) ChangedRows(currentFileUrl string, PreviousFileUrl string) (int,
 	defer responsePreviousFile.Body.Close()
 
 	//переводим ответ в массив байт
-	responseCurrentByte, err := ioutil.ReadAll(responseCurrentFile.Body)
-	if err != nil {
-		return 0, 0, err
-	}
+	//responseCurrentByte, err := ioutil.ReadAll(responseCurrentFile.Body)
+	//if err != nil {
+	//	return 0, 0, err
+	//}
 
 	//вывести результат
-	fmt.Println((string(responseCurrentByte)))
+	//fmt.Println((string(responseCurrentByte)))
 
 	//ОПРЕДЕЛЕНИЕ КОЛЛИЧЕСТВА СТРОК
 	savedRows := 0
