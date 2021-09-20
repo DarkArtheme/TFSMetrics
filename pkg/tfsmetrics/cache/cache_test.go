@@ -1,6 +1,8 @@
-package tfsmetrics
+package cache
 
 import (
+	"go-marathon-team-3/pkg/tfsmetrics/repointerface"
+	"go-marathon-team-3/pkg/tfsmetrics/store"
 	"os"
 	"testing"
 	"time"
@@ -10,9 +12,9 @@ import (
 )
 
 func Test_repositoryCache_Cache(t *testing.T) {
-	iter := testIterator{
-		index: 0,
-		commits: []Commit{
+	iter := store.TestIterator{
+		Index: 0,
+		Commits: []repointerface.Commit{
 			{Id: 1,
 				Author: "Ivan"},
 			{Id: 2,
@@ -22,11 +24,11 @@ func Test_repositoryCache_Cache(t *testing.T) {
 		},
 	}
 
-	store, err := TestStore()
+	store, err := store.TestStore()
 	require.NoError(t, err)
 	defer store.Close()
 	defer func() {
-		os.Remove(store.db.Path())
+		os.Remove(store.DB.Path())
 	}()
 
 	cacher := repositoryCache{
@@ -39,17 +41,17 @@ func Test_repositoryCache_Cache(t *testing.T) {
 	time.Sleep(time.Second)
 	commit, err := iterator.Next()
 	assert.NoError(t, err)
-	assert.Equal(t, &Commit{Id: 1,
+	assert.Equal(t, &repointerface.Commit{Id: 1,
 		Author: "Ivan"}, commit)
 
 	commit, err = iterator.Next()
 	assert.NoError(t, err)
-	assert.Equal(t, &Commit{Id: 2,
+	assert.Equal(t, &repointerface.Commit{Id: 2,
 		Author: "Peter"}, commit)
 
 	commit, err = iterator.Next()
 	assert.NoError(t, err)
-	assert.Equal(t, &Commit{Id: 3,
+	assert.Equal(t, &repointerface.Commit{Id: 3,
 		Author: "Vity"}, commit)
 
 	commit, err = iterator.Next()

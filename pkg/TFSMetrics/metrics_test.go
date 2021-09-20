@@ -2,7 +2,10 @@ package tfsmetrics
 
 import (
 	"fmt"
-	"go-marathon-team-3/pkg/TFSMetrics/azure"
+
+	"go-marathon-team-3/pkg/tfsmetrics/azure"
+	"go-marathon-team-3/pkg/tfsmetrics/cache"
+	"go-marathon-team-3/pkg/tfsmetrics/store"
 	"os"
 	"testing"
 
@@ -21,11 +24,11 @@ func Test_commitsCollection_Open(t *testing.T) {
 	require.NoError(t, err)
 
 	project := projects[1]
-	store, err := TestStore()
+	store, err := store.TestStore()
 	require.NoError(t, err)
 	defer store.Close()
 	defer func() {
-		os.Remove(store.db.Path())
+		os.Remove(store.DB.Path())
 	}()
 	// for _, project := range projects {
 	fmt.Println("start " + *project)
@@ -41,7 +44,7 @@ func Test_commitsCollection_Open(t *testing.T) {
 	// for commit, err := iter.Next(); err == nil; commit, err = iter.Next() {
 	// 	fmt.Println(commit)
 	// }
-	cacher := NewCacher(*project, store)
+	cacher := cache.NewCacher(*project, store)
 	newIter, err := cacher.Cache(iter)
 	require.NoError(t, err)
 

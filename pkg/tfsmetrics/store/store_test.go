@@ -1,6 +1,7 @@
-package tfsmetrics
+package store
 
 import (
+	"go-marathon-team-3/pkg/tfsmetrics/repointerface"
 	"os"
 	"testing"
 	"time"
@@ -14,9 +15,9 @@ func TestDB_FindOne(t *testing.T) {
 	require.NoError(t, err)
 	defer store.Close()
 	defer func() {
-		os.Remove(store.db.Path())
+		os.Remove(store.DB.Path())
 	}()
-	commit := Commit{
+	commit := repointerface.Commit{
 		Id:          1,
 		Author:      "ivan",
 		Email:       "example@example.com",
@@ -34,7 +35,7 @@ func TestDB_FindOne(t *testing.T) {
 		name string
 
 		id      int
-		want    *Commit
+		want    *repointerface.Commit
 		wantErr bool
 	}{
 		{
@@ -69,9 +70,9 @@ func TestDB_Write(t *testing.T) {
 	require.NoError(t, err)
 	defer store.Close()
 	defer func() {
-		os.Remove(store.db.Path())
+		os.Remove(store.DB.Path())
 	}()
-	commit := Commit{
+	commit := repointerface.Commit{
 		Id:          1,
 		Author:      "ivan",
 		Email:       "example@example.com",
@@ -85,7 +86,7 @@ func TestDB_Write(t *testing.T) {
 	tests := []struct {
 		name string
 
-		commit *Commit
+		commit *repointerface.Commit
 	}{
 		{
 			name:   "ok",

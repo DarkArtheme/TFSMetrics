@@ -1,9 +1,10 @@
-package tfsmetrics
+package store
 
 import (
 	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"go-marathon-team-3/pkg/tfsmetrics/repointerface"
 
 	bolt "go.etcd.io/bbolt"
 )
@@ -11,18 +12,18 @@ import (
 type Store interface {
 	Open() error
 	Close() error
-	FindOne(id int) (*Commit, error)
-	Write(commit *Commit) error
+	FindOne(id int) (*repointerface.Commit, error)
+	Write(commit *repointerface.Commit) error
 }
 
 type DB struct {
-	db          *bolt.DB
-	projectName string
+	DB          *bolt.DB
+	ProjectName string
 }
 
 func NewStore(pn string) Store {
 	return &DB{
-		projectName: pn,
+		ProjectName: pn,
 	}
 }
 
@@ -32,18 +33,18 @@ func (db *DB) Open() error {
 		return err
 	}
 
-	db.db = bolt
+	db.DB = bolt
 	return nil
 }
 
 func (db *DB) Close() error {
-	return db.db.Close()
+	return db.DB.Close()
 }
 
-func (db *DB) FindOne(id int) (*Commit, error) {
-	res := &Commit{}
-	err := db.db.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(db.projectName))
+func (db *DB) FindOne(id int) (*repointerface.Commit, error) {
+	res := &repointerface.Commit{}
+	err := db.DB.View(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte(db.ProjectName))
 		v := b.Get(itob(id))
 
 		if v == nil {
@@ -60,9 +61,9 @@ func (db *DB) FindOne(id int) (*Commit, error) {
 	return res, nil
 }
 
-func (db *DB) Write(commit *Commit) error {
-	err := db.db.Update(func(tx *bolt.Tx) error {
-		b, err := tx.CreateBucketIfNotExists([]byte(db.projectName))
+func (db *DB) Write(commit *repointerface.Commit) error {
+	err := db.DB.Update(func(tx *bolt.Tx) error {
+		b, err := tx.CreateBucketIfNotExists([]byte(db.ProjectName))
 		if err != nil {
 			return err
 		}

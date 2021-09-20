@@ -1,6 +1,8 @@
-package tfsmetrics
+package cache
 
 import (
+	"go-marathon-team-3/pkg/tfsmetrics/repointerface"
+	"go-marathon-team-3/pkg/tfsmetrics/store"
 	"log"
 	"sync"
 	"time"
@@ -10,20 +12,20 @@ var idChan chan int = make(chan int, 10)
 var wg sync.WaitGroup = sync.WaitGroup{}
 
 type Cacher interface {
-	Cache(iterator CommitIterator) (CommitIterator, error)
+	Cache(iterator repointerface.CommitIterator) (repointerface.CommitIterator, error)
 }
 
 type repositoryCache struct {
-	store Store
+	store store.Store
 }
 
-func NewCacher(projectName string, store Store) Cacher {
+func NewCacher(projectName string, store store.Store) Cacher {
 	return &repositoryCache{
 		store: store,
 	}
 }
 
-func (rc *repositoryCache) Cache(iterator CommitIterator) (CommitIterator, error) {
+func (rc *repositoryCache) Cache(iterator repointerface.CommitIterator) (repointerface.CommitIterator, error) {
 	commit, err := iterator.Next()
 	if err != nil {
 		return nil, err
@@ -49,10 +51,10 @@ type storeIterator struct {
 	index int
 	ids   []int
 
-	store Store
+	store store.Store
 }
 
-func NewStoreIterator(commit *Commit, store Store) CommitIterator {
+func NewStoreIterator(commit *repointerface.Commit, store store.Store) repointerface.CommitIterator {
 	si := &storeIterator{
 		index: 0,
 		ids:   []int{commit.Id},
@@ -67,7 +69,7 @@ func NewStoreIterator(commit *Commit, store Store) CommitIterator {
 	return si
 }
 
-func (si *storeIterator) Next() (*Commit, error) {
+func (si *storeIterator) Next() (*repointerface.Commit, error) {
 	for i := 0; i < 3; i++ {
 		if si.index < len(si.ids) {
 			si.index++
@@ -89,5 +91,5 @@ func (si *storeIterator) Next() (*Commit, error) {
 		}
 		return commit, nil
 	}
-	return nil, errNoMoreItems
+	return nil, repointerface.ErrNoMoreItems
 }
