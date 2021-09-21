@@ -2,11 +2,12 @@ package azure
 
 import (
 	"fmt"
-	"net/http"
+	"io"
 	"time"
 
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/core"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/git"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/tfvc"
 )
 
@@ -106,11 +107,11 @@ func (a *Azure) GetChangesetChanges(id *int, project string) (*ChangeSet, error)
 		messg = *changes.Comment
 	}
 
-	changesHash, err := a.TfvcClient.GetChangesetChanges(a.Config.Context, tfvc.GetChangesetChangesArgs{Id: id})
-	if err != nil {
-		return nil, err
-	}
-	fmt.Println(changesHash.Value[0].Item.(map[string]interface{})["url"].(string))
+	// changesHash, err := a.TfvcClient.GetChangesetChanges(a.Config.Context, tfvc.GetChangesetChangesArgs{Id: id})
+	// if err != nil {
+	// 	return nil, err
+	// }
+	// // fmt.Println(changesHash.Value[0].Item.(map[string]interface{}))
 
 	commit := &ChangeSet{
 		ProjectName: project,
@@ -125,24 +126,25 @@ func (a *Azure) GetChangesetChanges(id *int, project string) (*ChangeSet, error)
 }
 
 func (a *Azure) ChangedRows(currentFileUrl string, PreviousFileUrl string) (int, int, error) {
-	//СКАЧИВАНИЕ ФАЙЛОВ
-	responseCurrentFile, err := http.Get(currentFileUrl) //скачиваем актуальный файл
+	item, err := a.TfvcClient.GetItemContent(a.Config.Context, tfvc.GetItemContentArgs{Path: &currentFileUrl})
 	if err != nil {
 		return 0, 0, err
 	}
-	defer responseCurrentFile.Body.Close()
-
-	changesHash, err := a.TfvcClient.GetItem(a.Config.Context, tfvc.GetItemArgs{Path: &currentFileUrl})
-	if err != nil {
-		fmt.Println("err GetItemArgs")
+	if b, err := io.ReadAll(item); err == nil {
+		fmt.Println("текущая версия")
+		fmt.Println(string(b))
 	}
-	fmt.Println("TEST", changesHash)
 
-	responsePreviousFile, err := http.Get(PreviousFileUrl) //скачиваем предыдущий файл
+	ver := "17" // заменить на код для разных версий
+	item1, err := a.TfvcClient.GetItemContent(a.Config.Context, tfvc.GetItemContentArgs{Path: &currentFileUrl,
+		VersionDescriptor: &git.TfvcVersionDescriptor{Version: &ver}})
 	if err != nil {
 		return 0, 0, err
 	}
-	defer responsePreviousFile.Body.Close()
+	if b, err := io.ReadAll(item1); err == nil {
+		fmt.Println("предыдущая версия")
+		fmt.Println(string(b))
+	}
 
 	//переводим ответ в массив байт
 	//responseCurrentByte, err := ioutil.ReadAll(responseCurrentFile.Body)

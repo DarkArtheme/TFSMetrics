@@ -1,15 +1,14 @@
 package azure
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-func TestAzure_GetChangesetChanges(t *testing.T) {
+// func TestAzure_GetChangesetChanges(t *testing.T) {
 	conf := NewConfig()
-	conf.OrganizationUrl = "https://dev.azure.com/GnivcTestTaskTeam3"	
+	conf.OrganizationUrl = "https://dev.azure.com/GnivcTestTaskTeam3"
 	conf.Token = "yem42urypxdzuhceovddboakqs7skiicinze2i2u2leqrvbgblcq"
 
 	azure := NewAzure(conf)
@@ -36,7 +35,7 @@ func TestAzure_ChangedRows(t *testing.T) {
 	azure.TfvcClientConnection()
 
 	//ссылки на файлы
-	currentFileUrl := "https://dev.azure.com/GnivcTestTaskTeam3/_apis/tfvc/items/$/Project2/test.txt?versionType=Changeset&version=18"
+	currentFileUrl := "$/Project2/test.txt"
 	previousFileUrl := "https://dev.azure.com/GnivcTestTaskTeam3/_apis/tfvc/items/$/Project2/test.txt?versionType=Changeset&version=17"
 
 	//получаем результат работы функции
