@@ -30,13 +30,7 @@ func Test_commitsCollection_Open(t *testing.T) {
 		os.Remove(store.DB.Path())
 	}()
 	for _, project := range projects {
-		fmt.Println("start " + *project)
-		commmits := &commitsCollection{
-			nameOfProject: *project,
-			azure:         azure,
-		}
-		err = commmits.Open()
-		require.NoError(t, err)
+		commmits := NewCommitCollection(*project, azure)
 		iter, err := commmits.GetCommitIterator()
 		require.NoError(t, err)
 

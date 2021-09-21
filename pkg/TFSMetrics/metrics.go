@@ -10,6 +10,13 @@ type commitsCollection struct {
 	azure         azure.AzureInterface
 }
 
+func NewCommitCollection(nameOfProject string, azure *azure.Azure) repointerface.Repository {
+	return &commitsCollection{
+		nameOfProject: nameOfProject,
+		azure:         azure,
+	}
+}
+
 func (c *commitsCollection) Open() error {
 	return c.azure.TfvcClientConnection()
 }

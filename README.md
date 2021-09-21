@@ -12,5 +12,9 @@
 > go install ./cmd/cli-metrics
 2. Далее можно запускать cli просто введя:
 > cli-metrics
+3. Введите следующую команду, чтобы настроить параметры подключения:
+> cli-metrics config --url "SOME_TFS_URL" --token "YOUR_PERSONAL_ACCESS_TOKEN"
+4. Введите следующую команду, чтобы подключиться:
+> cli-metrics connect
 
 Используйте флаг *--help* для получения помощи.
