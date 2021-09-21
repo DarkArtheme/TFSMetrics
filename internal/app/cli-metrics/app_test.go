@@ -1,9 +1,10 @@
 package cli_metrics
 
 import (
-	"github.com/stretchr/testify/assert"
-	"go-marathon-team-3/pkg/TFSMetrics/azure"
+	"go-marathon-team-3/pkg/tfsmetrics/azure"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestReadConfigFile(t *testing.T) {
