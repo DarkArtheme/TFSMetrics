@@ -1,12 +1,13 @@
 package azure
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 )
 
-// func TestAzure_GetChangesetChanges(t *testing.T) {
+func TestAzure_GetChangesetChanges(t *testing.T) {
 	conf := NewConfig()
 	conf.OrganizationUrl = "https://dev.azure.com/GnivcTestTaskTeam3"
 	conf.Token = "yem42urypxdzuhceovddboakqs7skiicinze2i2u2leqrvbgblcq"
@@ -43,6 +44,6 @@ func TestAzure_ChangedRows(t *testing.T) {
 
 	//проверки
 	assert.NoError(t, err)
-	assert.Equal(t, 0, addedRows)
+	assert.Equal(t, 1, addedRows)
 	assert.Equal(t, 0, deletedRows)
 }

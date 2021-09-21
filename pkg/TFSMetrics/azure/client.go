@@ -3,6 +3,7 @@ package azure
 import (
 	"fmt"
 	"io"
+	"strings"
 	"time"
 
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
@@ -126,43 +127,70 @@ func (a *Azure) GetChangesetChanges(id *int, project string) (*ChangeSet, error)
 }
 
 func (a *Azure) ChangedRows(currentFileUrl string, PreviousFileUrl string) (int, int, error) {
+	//GET FILES
 	item, err := a.TfvcClient.GetItemContent(a.Config.Context, tfvc.GetItemContentArgs{Path: &currentFileUrl})
 	if err != nil {
 		return 0, 0, err
 	}
-	if b, err := io.ReadAll(item); err == nil {
-		fmt.Println("текущая версия")
-		fmt.Println(string(b))
+
+	b1, err := io.ReadAll(item)
+	if err != nil { //Read All File in array byte
+		return 0, 0, err
 	}
 
-	ver := "17" // заменить на код для разных версий
+	ver := "22" // заменить на код для разных версий
 	item1, err := a.TfvcClient.GetItemContent(a.Config.Context, tfvc.GetItemContentArgs{Path: &currentFileUrl,
 		VersionDescriptor: &git.TfvcVersionDescriptor{Version: &ver}})
 	if err != nil {
 		return 0, 0, err
 	}
-	if b, err := io.ReadAll(item1); err == nil {
-		fmt.Println("предыдущая версия")
-		fmt.Println(string(b))
+	b2, err := io.ReadAll(item1)
+	if err != nil {
+		return 0, 0, err
 	}
 
-	//переводим ответ в массив байт
-	//responseCurrentByte, err := ioutil.ReadAll(responseCurrentFile.Body)
-	//if err != nil {
-	//	return 0, 0, err
-	//}
+	//transform array byte in string
+	currentFile := string(b1)
+	previousFile := string(b2)
 
-	//вывести результат
-	//fmt.Println((string(responseCurrentByte)))
+	//split string
+	currentStrings := strings.Split(currentFile, "\n")
+	previousStrings := strings.Split(previousFile, "\n")
 
-	//ОПРЕДЕЛЕНИЕ КОЛЛИЧЕСТВА СТРОК
-	savedRows := 0
+	//COUNTERS
+	addedRows := 0
 	deletedRows := 0
-	allRows := 0
 
-	//Считать хэши строк или напрямую сравнивать строкуи из CurrentFileData и PreviusFileData??????
+	for k, v := range currentStrings {
+		fmt.Println(k, v)
+	}
 
-	addedRows := allRows - savedRows
+	for k, v := range previousStrings {
+		fmt.Println(k, v)
+	}
+
+	//Count added strings
+	i := 0 //for chek end currentStrings
+	for _, v1 := range currentStrings {
+		if v1 == "" {
+			continue
+		}
+		i = 0
+		for _, v2 := range previousStrings {
+			if v1 == v2 {
+				break
+			}
+			i++
+		}
+		if i == len(previousStrings) {
+			addedRows++
+		}
+	}
+
+	//заглушка
+	if 5 == 4 {
+		fmt.Println(previousStrings)
+	}
 
 	return addedRows, deletedRows, err
 }
