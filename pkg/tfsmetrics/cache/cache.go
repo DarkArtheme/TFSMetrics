@@ -8,7 +8,6 @@ import (
 	"time"
 )
 
-var idChan chan int = make(chan int, 10)
 var wg sync.WaitGroup = sync.WaitGroup{}
 
 type Cacher interface {
@@ -16,12 +15,14 @@ type Cacher interface {
 }
 
 type repositoryCache struct {
-	store store.Store
+	store  store.Store
+	idChan chan int
 }
 
 func NewCacher(projectName string, store store.Store) Cacher {
 	return &repositoryCache{
-		store: store,
+		store:  store,
+		idChan: make(chan int, 10),
 	}
 }
 
@@ -31,7 +32,7 @@ func (rc *repositoryCache) Cache(iterator repointerface.CommitIterator) (repoint
 		return nil, err
 	}
 	rc.store.Write(commit)
-	storeIterator := NewStoreIterator(commit, rc.store)
+	storeIterator := NewStoreIterator(commit, rc.store, rc.idChan)
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -41,7 +42,7 @@ func (rc *repositoryCache) Cache(iterator repointerface.CommitIterator) (repoint
 				log.Panic(err)
 				return
 			}
-			idChan <- commit.Id
+			rc.idChan <- commit.Id
 		}
 	}()
 	return storeIterator, nil
@@ -54,26 +55,26 @@ type storeIterator struct {
 	store store.Store
 }
 
-func NewStoreIterator(commit *repointerface.Commit, store store.Store) repointerface.CommitIterator {
+func NewStoreIterator(commit *repointerface.Commit, store store.Store, idChan chan int) repointerface.CommitIterator {
 	si := &storeIterator{
 		index: 0,
 		ids:   []int{commit.Id},
 		store: store,
 	}
-	go func(iter storeIterator) {
+	go func() {
 		for {
 			id := <-idChan
 			si.ids = append(si.ids, id)
 		}
-	}(*si)
+	}()
 	return si
 }
 
 func (si *storeIterator) Next() (*repointerface.Commit, error) {
 	for i := 0; i < 3; i++ {
 		if si.index < len(si.ids) {
+			commit, err := si.store.FindOne(si.ids[si.index])
 			si.index++
-			commit, err := si.store.FindOne(si.ids[si.index-1])
 			if err != nil {
 				return nil, err
 			}
