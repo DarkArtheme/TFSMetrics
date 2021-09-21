@@ -15,7 +15,6 @@ import (
 
 func CreateMetricsApp(prjPath string) *cli.App {
 	var azureClient *azure.Azure
-	isConnected := false
 	app := cli.NewApp()
 	app.Name = "cli-metrics"
 	app.Usage = "CLI для взаимодействия с библиотекой"
@@ -28,7 +27,6 @@ func CreateMetricsApp(prjPath string) *cli.App {
 	app.Authors = []*cli.Author {
 		{ Name: "Андрей Назаренко" },
 		{ Name: "Артем Богданов" },
-		{ Name: "Василий Грязных" },
 		{ Name: "Алексей Вологдин" },
 	}
 	var url string
@@ -36,7 +34,7 @@ func CreateMetricsApp(prjPath string) *cli.App {
 	app.Commands = []*cli.Command {
 		{
 			Name: "config",
-			Aliases: []string{"c"},
+			Aliases: []string{},
 			Usage: "установка параметров, необходимых для подключения к Azure",
 			Flags: []cli.Flag {
 				&cli.StringFlag {
@@ -74,6 +72,45 @@ func CreateMetricsApp(prjPath string) *cli.App {
 			Aliases: []string{},
 			Usage: "получение информации обо всех коммитах",
 			Action: func(context *cli.Context) error {
+				var err error
+				prjName := context.Args().Get(0)
+				azureClient, err = connect(prjPath)
+				if err != nil {
+					return err
+				}
+				projectNames, err := azureClient.ListOfProjects()
+				if err != nil {
+					return err
+				}
+				if prjName == "" {
+					fmt.Println("Название проекта не было указано, информация по коммитам будет выведена по всем проектам:\n")
+					for _, project := range projectNames {
+						fmt.Printf("\t\t\t\t\t\tПроект %s:\n\n\n", *project)
+						commits := tfsmetrics.NewCommitCollection(*project, azureClient)
+						iter, err := commits.GetCommitIterator()
+						if err != nil {
+							return err
+						}
+						for commit, err := iter.Next(); err == nil; commit, err = iter.Next() {
+							printFullCommit(commit)
+						}
+					}
+				} else {
+					for _, project := range projectNames {
+						if *project == prjName{
+							fmt.Printf("\t\t\tПроект %s:\n\n\n", *project)
+							commits := tfsmetrics.NewCommitCollection(*project, azureClient)
+							iter, err := commits.GetCommitIterator()
+							if err != nil {
+								return err
+							}
+							for commit, err := iter.Next(); err == nil; commit, err = iter.Next() {
+								printFullCommit(commit)
+							}
+							break
+						}
+					}
+				}
 				commits := getCommits()
 				for _, commit := range *commits {
 					printFullCommit(&commit)
@@ -82,34 +119,22 @@ func CreateMetricsApp(prjPath string) *cli.App {
 			},
 		},
 		{
-			Name: "connect",
+			Name: "list",
 			Aliases: []string{},
-			Usage: "подключение к TFS-репозиторию",
+			Usage: "вывод на экран названий всех проектов в репозитории",
 			Action: func(context *cli.Context) error {
-				filePath := path.Join(prjPath, "configs/config.yaml")
-				config, err := ReadConfigFile(filePath)
+				var err error
+				azureClient, err = connect(prjPath)
 				if err != nil {
 					return err
 				}
-				if config.OrganizationUrl == "" && config.Token == "" {
-					return errors.New("отсутствуют параметры подключения (cli-metrics config)")
-				} else if config.OrganizationUrl == "" {
-					return errors.New("отсутствует url подключения (cli-metrics config --url)")
-				} else if config.Token == "" {
-					return errors.New("отсутствует token подключения (cli-metrics config --token)")
-				}
-				azureClient = azure.NewAzure(config)
-				azureClient.Connect()
-				err = azureClient.TfvcClientConnection()
-				if err != nil {
-					return err
-				}
-				isConnected = true
-				fmt.Println("Успешное подключение")
 				projectNames, err := azureClient.ListOfProjects()
+				if err != nil {
+					return err
+				}
 				fmt.Println("Доступны следующие проекты:")
-				for _, project := range projectNames {
-					fmt.Println(*project)
+				for ind, project := range projectNames {
+					fmt.Printf("%d) %s\n",ind + 1, *project)
 				}
 				return nil
 			},
@@ -172,4 +197,23 @@ func getCommits() *[]tfsmetrics.Commit {
 			Message: "Commit message", Hash: "2e4ca12s" })
 	}
 	return &commits
+}
+
+func connect(prjPath string) (*azure.Azure, error) {
+	filePath := path.Join(prjPath, "configs/config.yaml")
+	config, err := ReadConfigFile(filePath)
+	if config.OrganizationUrl == "" && config.Token == "" {
+		return nil, errors.New("отсутствуют параметры подключения (cli-metrics config)")
+	} else if config.OrganizationUrl == "" {
+		return nil, errors.New("отсутствует url подключения (cli-metrics config --url)")
+	} else if config.Token == "" {
+		return nil, errors.New("отсутствует token подключения (cli-metrics config --token)")
+	}
+	azureClient := azure.NewAzure(config)
+	azureClient.Connect()
+	err = azureClient.TfvcClientConnection()
+	if err != nil {
+		return nil, err
+	}
+	return azureClient, err
 }
