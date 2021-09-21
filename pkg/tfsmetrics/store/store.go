@@ -10,41 +10,43 @@ import (
 )
 
 type Store interface {
-	Open() error
+	InitProject(projectName string) error
 	Close() error
-	FindOne(id int) (*repointerface.Commit, error)
-	Write(commit *repointerface.Commit) error
+	FindOne(id int, projectName string) (*repointerface.Commit, error)
+	Write(commit *repointerface.Commit, projectName string) error
 }
 
 type DB struct {
-	DB          *bolt.DB
-	ProjectName string
+	DB *bolt.DB
 }
 
-func NewStore(pn string) Store {
-	return &DB{
-		ProjectName: pn,
-	}
-}
-
-func (db *DB) Open() error {
-	bolt, err := bolt.Open("assets.db", 0600, nil)
+func NewStore() (Store, error) {
+	db, err := bolt.Open("assets.db", 0600, nil)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
-	db.DB = bolt
-	return nil
+	return &DB{DB: db}, nil
+}
+
+func (db *DB) InitProject(projectName string) error {
+	return db.DB.Update(func(tx *bolt.Tx) error {
+		_, err := tx.CreateBucketIfNotExists([]byte(projectName))
+		if err != nil {
+			return err
+		}
+		return nil
+	})
 }
 
 func (db *DB) Close() error {
 	return db.DB.Close()
 }
 
-func (db *DB) FindOne(id int) (*repointerface.Commit, error) {
+func (db *DB) FindOne(id int, projectName string) (*repointerface.Commit, error) {
 	res := &repointerface.Commit{}
 	err := db.DB.View(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte(db.ProjectName))
+		b := tx.Bucket([]byte(projectName))
 		v := b.Get(itob(id))
 
 		if v == nil {
@@ -61,9 +63,9 @@ func (db *DB) FindOne(id int) (*repointerface.Commit, error) {
 	return res, nil
 }
 
-func (db *DB) Write(commit *repointerface.Commit) error {
+func (db *DB) Write(commit *repointerface.Commit, projectName string) error {
 	err := db.DB.Update(func(tx *bolt.Tx) error {
-		b, err := tx.CreateBucketIfNotExists([]byte(db.ProjectName))
+		b, err := tx.CreateBucketIfNotExists([]byte(projectName))
 		if err != nil {
 			return err
 		}

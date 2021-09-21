@@ -8,7 +8,7 @@ import (
 var ErrNoMoreItems error = errors.New("no more items")
 
 type Repository interface {
-	Open() error // вызываем azure.TfvcClientConnection()
+	Open() error // Вызывать для каждого проекта, если включен кэш
 	GetCommitIterator() (CommitIterator, error)
 }
 

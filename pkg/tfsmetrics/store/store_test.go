@@ -11,6 +11,7 @@ import (
 )
 
 func TestDB_FindOne(t *testing.T) {
+	projectName := "project"
 	store, err := TestStore()
 	require.NoError(t, err)
 	defer store.Close()
@@ -28,7 +29,7 @@ func TestDB_FindOne(t *testing.T) {
 		Hash:        "",
 	}
 
-	err = store.Write(&commit)
+	err = store.Write(&commit, projectName)
 	require.NoError(t, err)
 
 	tests := []struct {
@@ -53,7 +54,7 @@ func TestDB_FindOne(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c, err := store.FindOne(tt.id)
+			c, err := store.FindOne(tt.id, projectName)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -66,6 +67,7 @@ func TestDB_FindOne(t *testing.T) {
 }
 
 func TestDB_Write(t *testing.T) {
+	projectName := "project"
 	store, err := TestStore()
 	require.NoError(t, err)
 	defer store.Close()
@@ -99,10 +101,10 @@ func TestDB_Write(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := store.Write(tt.commit)
+			err := store.Write(tt.commit, projectName)
 			assert.NoError(t, err)
 
-			c, err := store.FindOne(tt.commit.Id)
+			c, err := store.FindOne(tt.commit.Id, projectName)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.commit, c)
 		})

@@ -25,8 +25,7 @@ func TestStore() (*DB, error) {
 		return nil, err
 	}
 	store := DB{
-		DB:          bolt,
-		ProjectName: "project1",
+		DB: bolt,
 	}
 	return &store, nil
 }
