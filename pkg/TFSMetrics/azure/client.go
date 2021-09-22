@@ -1,9 +1,9 @@
 package azure
 
 import (
-	"fmt"
 	"io"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
@@ -138,7 +138,7 @@ func (a *Azure) ChangedRows(currentFileUrl string, PreviousFileUrl string) (int,
 		return 0, 0, err
 	}
 
-	ver := "22" // заменить на код для разных версий
+	ver := "24" // заменить на код для разных версий
 	item1, err := a.TfvcClient.GetItemContent(a.Config.Context, tfvc.GetItemContentArgs{Path: &currentFileUrl,
 		VersionDescriptor: &git.TfvcVersionDescriptor{Version: &ver}})
 	if err != nil {
@@ -157,42 +157,72 @@ func (a *Azure) ChangedRows(currentFileUrl string, PreviousFileUrl string) (int,
 	currentStrings := strings.Split(currentFile, "\n")
 	previousStrings := strings.Split(previousFile, "\n")
 
-	//COUNTERS
+	//ADD STRINGS IN MAP
+	//create maps
+	currentStringsMap := make(map[int]string, len(currentStrings))
+	copyCurrentStringsMap := make(map[int]string, len(currentStrings))
+	previousStringsMap := make(map[int]string, len(previousStrings))
+	copyPreviousStringsMap := make(map[int]string, len(previousStrings))
+	//add strings
+	for k, v := range currentStrings {
+		currentStringsMap[k] = v
+		copyCurrentStringsMap[k] = v
+	}
+	for k, v := range previousStrings {
+		previousStringsMap[k] = v
+		copyPreviousStringsMap[k] = v
+	}
+
+	//COUNT ADDED STRINGS
+	//counters
 	addedRows := 0
 	deletedRows := 0
 
-	for k, v := range currentStrings {
-		fmt.Println(k, v)
-	}
+	wg := sync.WaitGroup{} //for asynchrony
+	wg.Add(2)
+	go countAddedRows(copyCurrentStringsMap, copyPreviousStringsMap, &addedRows, &wg) //count added strings
+	go countDeleteRows(currentStringsMap, previousStringsMap, &deletedRows, &wg)      //count delete strings
+	wg.Wait()
 
-	for k, v := range previousStrings {
-		fmt.Println(k, v)
-	}
+	return addedRows, deletedRows, err
+}
 
-	//Count added strings
+func countAddedRows(currentStringsMap, previousStringsMap map[int]string, addedRows *int, wg *sync.WaitGroup) {
+	defer wg.Done()
 	i := 0 //for chek end currentStrings
-	for _, v1 := range currentStrings {
-		if v1 == "" {
-			continue
-		}
+	for _, v1 := range currentStringsMap {
 		i = 0
-		for _, v2 := range previousStrings {
+		for k, v2 := range previousStringsMap {
 			if v1 == v2 {
+				delete(previousStringsMap, k)
+				i--
 				break
 			}
 			i++
 		}
-		if i == len(previousStrings) {
-			addedRows++
+		if i == len(previousStringsMap) {
+			(*addedRows)++
 		}
 	}
+}
 
-	//заглушка
-	if 5 == 4 {
-		fmt.Println(previousStrings)
+func countDeleteRows(currentStringsMap, previousStringsMap map[int]string, deletedRows *int, wg *sync.WaitGroup) {
+	defer wg.Done()
+	i := 0 //for chek end currentStrings
+	for _, v1 := range previousStringsMap {
+		i = 0
+		for k, v2 := range currentStringsMap {
+			if v1 == v2 {
+				delete(currentStringsMap, k)
+				i--
+				break
+			}
+			i++
+		}
+		if i == len(currentStringsMap) {
+			(*deletedRows)++
+		}
 	}
-
-	return addedRows, deletedRows, err
 }
 
 // заглушка чтобы избавиться от ошибки нереализованного интерфейса

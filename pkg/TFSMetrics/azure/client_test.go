@@ -44,6 +44,6 @@ func TestAzure_ChangedRows(t *testing.T) {
 
 	//проверки
 	assert.NoError(t, err)
-	assert.Equal(t, 1, addedRows)
-	assert.Equal(t, 0, deletedRows)
+	assert.Equal(t, 4, addedRows)
+	assert.Equal(t, 1, deletedRows)
 }
