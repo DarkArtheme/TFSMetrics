@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+var errNoMoreItems error = errors.New("no more items")
+
 type Repository interface {
 	Open() error // вызываем azure.TfvcClientConnection()
 	GetCommitIterator() (CommitIterator, error)
@@ -16,6 +18,7 @@ type CommitIterator interface {
 }
 
 type Commit struct {
+	Id          int
 	Author      string // обязательное поле
 	Email       string
 	AddedRows   int       // обязательное поле
@@ -62,12 +65,13 @@ type iterator struct {
 
 func (i *iterator) Next() (*Commit, error) {
 	if i.index < len(i.commits) {
-		changeSet, err := i.azure.GetChangesetChanges(i.commits[i.index], i.nameOfProject)
+		i.index++
+		changeSet, err := i.azure.GetChangesetChanges(i.commits[i.index-1], i.nameOfProject)
 		if err != nil {
 			return nil, err
 		}
-		i.index++
 		return &Commit{
+			Id:          changeSet.Id,
 			Author:      changeSet.Author,
 			Email:       changeSet.Email,
 			AddedRows:   changeSet.AddedRows,
@@ -77,5 +81,5 @@ func (i *iterator) Next() (*Commit, error) {
 			Hash:        changeSet.Hash,
 		}, nil
 	}
-	return &Commit{}, errors.New("no more items")
+	return nil, errNoMoreItems
 }
