@@ -16,18 +16,6 @@ func Test_commitsCollection_Open(t *testing.T) {
 
 	azure := azure.NewAzure(conf)
 	azure.Connect()
-<<<<<<< HEAD
-	azure.TfvcClientConnection()
-	projects, _ := azure.ListOfProjects()
-
-	for _, project := range projects {
-		commmits := NewCommitCollection(*project, azure)
-		iter, err := commmits.GetCommitIterator()
-		require.NoError(t, err)
-		for commit, err := iter.Next(); err == nil; commit, err = iter.Next() {
-			fmt.Println(commit)
-		}
-=======
 
 	projects, err := azure.ListOfProjects()
 	require.NoError(t, err)
@@ -59,7 +47,6 @@ func Test_commitsCollection_Open(t *testing.T) {
 
 	for commit, err := newIter.Next(); err == nil; commit, err = newIter.Next() {
 		fmt.Println(commit)
->>>>>>> cli-cache
 	}
 	// }
 
