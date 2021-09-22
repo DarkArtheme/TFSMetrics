@@ -3,8 +3,8 @@ package cli_metrics
 import (
 	"errors"
 	"fmt"
-	tfsmetrics "go-marathon-team-3/pkg/TFSMetrics"
-	"go-marathon-team-3/pkg/TFSMetrics/azure"
+	"go-marathon-team-3/pkg/tfsmetrics"
+	"go-marathon-team-3/pkg/tfsmetrics/azure"
 	"go-marathon-team-3/pkg/tfsmetrics/repointerface"
 
 	"github.com/urfave/cli/v2"

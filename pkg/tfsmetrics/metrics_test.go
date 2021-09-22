@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"go-marathon-team-3/pkg/TFSMetrics/azure"
+	"go-marathon-team-3/pkg/tfsmetrics/azure"
 	"go-marathon-team-3/pkg/tfsmetrics/store"
 	"testing"
 

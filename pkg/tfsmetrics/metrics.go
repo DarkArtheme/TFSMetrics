@@ -1,7 +1,7 @@
 package tfsmetrics
 
 import (
-	"go-marathon-team-3/pkg/TFSMetrics/azure"
+	"go-marathon-team-3/pkg/tfsmetrics/azure"
 	"go-marathon-team-3/pkg/tfsmetrics/repointerface"
 	"go-marathon-team-3/pkg/tfsmetrics/store"
 )
