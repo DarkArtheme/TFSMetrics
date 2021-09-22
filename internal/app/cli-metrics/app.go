@@ -89,7 +89,7 @@ func CreateMetricsApp(prjPath string) *cli.App {
 				if prjName == "" {
 					fmt.Println("Название проекта не было указано, информация по коммитам будет выведена по всем проектам:\n")
 					for _, project := range projectNames {
-						fmt.Printf("\t\t\t\t\t\tПроект %s:\n\n\n", *project)
+						printProjectName(*project)
 						commits := tfsmetrics.NewCommitCollection(*project, azureClient, false, nil)
 						iter, err := commits.GetCommitIterator()
 						if err != nil {
@@ -102,7 +102,7 @@ func CreateMetricsApp(prjPath string) *cli.App {
 				} else {
 					for _, project := range projectNames {
 						if *project == prjName{
-							fmt.Printf("\t\t\tПроект %s:\n\n\n", *project)
+							printProjectName(*project)
 							commits := tfsmetrics.NewCommitCollection(*project, azureClient, false, nil)
 							iter, err := commits.GetCommitIterator()
 							if err != nil {
@@ -192,6 +192,14 @@ func printFullCommit(commit *repointerface.Commit) {
 	fmt.Printf("Date: %s\n", commit.Date.Format("2006-01-02 15:04:05"))
 	fmt.Printf("%d rows added and %d rows deleted\n", commit.AddedRows, commit.DeletedRows)
 	fmt.Printf("Commit message:\n\n\t%s\n\n", commit.Message)
+	fmt.Println("---------------------------------------------------------------------------------------------------")
+}
+
+func printProjectName(name string) {
+	fmt.Println("---------------------------------------------------------------------------------------------------")
+	fmt.Printf("\t\t\tПроект %s:\n", name)
+	fmt.Println("---------------------------------------------------------------------------------------------------")
+	fmt.Printf("\n\n")
 }
 
 // Эмуляция получения коммитов(ченджсетов). Будет удалена.
