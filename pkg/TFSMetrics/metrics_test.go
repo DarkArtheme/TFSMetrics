@@ -2,8 +2,10 @@ package tfsmetrics
 
 import (
 	"fmt"
-	"go-marathon-team-3/pkg/TFSMetrics/azure"
 	"os"
+
+	"go-marathon-team-3/pkg/TFSMetrics/azure"
+	"go-marathon-team-3/pkg/tfsmetrics/store"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -20,34 +22,22 @@ func Test_commitsCollection_Open(t *testing.T) {
 	projects, err := azure.ListOfProjects()
 	require.NoError(t, err)
 
-	project := projects[1]
-	store, err := TestStore()
+	store, err := store.TestStore()
 	require.NoError(t, err)
 	defer store.Close()
 	defer func() {
-		os.Remove(store.db.Path())
+		os.Remove(store.DB.Path())
 	}()
-	// for _, project := range projects {
-	fmt.Println("start " + *project)
-	commmits := &commitsCollection{
-		nameOfProject: *project,
-		azure:         azure,
-	}
-	err = commmits.Open()
-	require.NoError(t, err)
-	iter, err := commmits.GetCommitIterator()
-	require.NoError(t, err)
+	for _, project := range projects {
+		commmits := NewCommitCollection(*project, azure, true, store)
+		err := commmits.Open()
+		require.NoError(t, err)
+		iter, err := commmits.GetCommitIterator()
+		require.NoError(t, err)
 
-	// for commit, err := iter.Next(); err == nil; commit, err = iter.Next() {
-	// 	fmt.Println(commit)
-	// }
-	cacher := NewCacher(*project, store)
-	newIter, err := cacher.Cache(iter)
-	require.NoError(t, err)
-
-	for commit, err := newIter.Next(); err == nil; commit, err = newIter.Next() {
-		fmt.Println(commit)
+		for commit, err := iter.Next(); err == nil; commit, err = iter.Next() {
+			fmt.Println(commit)
+		}
 	}
-	// }
 
 }

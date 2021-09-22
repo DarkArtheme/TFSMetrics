@@ -1,6 +1,7 @@
-package tfsmetrics
+package store
 
 import (
+	"go-marathon-team-3/pkg/tfsmetrics/repointerface"
 	"os"
 	"testing"
 	"time"
@@ -10,13 +11,14 @@ import (
 )
 
 func TestDB_FindOne(t *testing.T) {
+	projectName := "project"
 	store, err := TestStore()
 	require.NoError(t, err)
 	defer store.Close()
 	defer func() {
-		os.Remove(store.db.Path())
+		os.Remove(store.DB.Path())
 	}()
-	commit := Commit{
+	commit := repointerface.Commit{
 		Id:          1,
 		Author:      "ivan",
 		Email:       "example@example.com",
@@ -27,14 +29,14 @@ func TestDB_FindOne(t *testing.T) {
 		Hash:        "",
 	}
 
-	err = store.Write(&commit)
+	err = store.Write(&commit, projectName)
 	require.NoError(t, err)
 
 	tests := []struct {
 		name string
 
 		id      int
-		want    *Commit
+		want    *repointerface.Commit
 		wantErr bool
 	}{
 		{
@@ -52,7 +54,7 @@ func TestDB_FindOne(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c, err := store.FindOne(tt.id)
+			c, err := store.FindOne(tt.id, projectName)
 			if tt.wantErr {
 				assert.Error(t, err)
 			} else {
@@ -65,13 +67,14 @@ func TestDB_FindOne(t *testing.T) {
 }
 
 func TestDB_Write(t *testing.T) {
+	projectName := "project"
 	store, err := TestStore()
 	require.NoError(t, err)
 	defer store.Close()
 	defer func() {
-		os.Remove(store.db.Path())
+		os.Remove(store.DB.Path())
 	}()
-	commit := Commit{
+	commit := repointerface.Commit{
 		Id:          1,
 		Author:      "ivan",
 		Email:       "example@example.com",
@@ -85,7 +88,7 @@ func TestDB_Write(t *testing.T) {
 	tests := []struct {
 		name string
 
-		commit *Commit
+		commit *repointerface.Commit
 	}{
 		{
 			name:   "ok",
@@ -98,10 +101,10 @@ func TestDB_Write(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := store.Write(tt.commit)
+			err := store.Write(tt.commit, projectName)
 			assert.NoError(t, err)
 
-			c, err := store.FindOne(tt.commit.Id)
+			c, err := store.FindOne(tt.commit.Id, projectName)
 			assert.NoError(t, err)
 			assert.Equal(t, tt.commit, c)
 		})

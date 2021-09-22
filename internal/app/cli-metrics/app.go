@@ -3,14 +3,18 @@ package cli_metrics
 import (
 	"errors"
 	"fmt"
-	"github.com/urfave/cli/v2"
 	tfsmetrics "go-marathon-team-3/pkg/TFSMetrics"
 	"go-marathon-team-3/pkg/TFSMetrics/azure"
-	"gopkg.in/yaml.v3"
+	"go-marathon-team-3/pkg/tfsmetrics/repointerface"
+
+	"github.com/urfave/cli/v2"
+
 	"io/ioutil"
 	"os"
 	"path"
 	"time"
+
+	"gopkg.in/yaml.v3"
 )
 
 func CreateMetricsApp(prjPath string) *cli.App {
@@ -31,7 +35,7 @@ func CreateMetricsApp(prjPath string) *cli.App {
 	}
 	var url string
 	var token string
-	app.Commands = []*cli.Command {
+	app.Commands = []*cli.Command{
 		{
 			Name: "config",
 			Aliases: []string{},
@@ -43,10 +47,10 @@ func CreateMetricsApp(prjPath string) *cli.App {
 					Usage: "url для подключения к Azure",
 					Destination: &url,
 				},
-				&cli.StringFlag {
-					Name: "access-token",
-					Aliases: []string{"token", "t"},
-					Usage: "personal access token для подключения к Azure",
+				&cli.StringFlag{
+					Name:        "access-token",
+					Aliases:     []string{"token", "t"},
+					Usage:       "personal access token для подключения к Azure",
 					Destination: &token,
 				},
 			},
@@ -68,9 +72,9 @@ func CreateMetricsApp(prjPath string) *cli.App {
 			},
 		},
 		{
-			Name: "log",
+			Name:    "log",
 			Aliases: []string{},
-			Usage: "получение информации обо всех коммитах",
+			Usage:   "получение информации обо всех коммитах",
 			Action: func(context *cli.Context) error {
 				var err error
 				prjName := context.Args().Get(0)
@@ -86,7 +90,7 @@ func CreateMetricsApp(prjPath string) *cli.App {
 					fmt.Println("Название проекта не было указано, информация по коммитам будет выведена по всем проектам:\n")
 					for _, project := range projectNames {
 						fmt.Printf("\t\t\t\t\t\tПроект %s:\n\n\n", *project)
-						commits := tfsmetrics.NewCommitCollection(*project, azureClient)
+						commits := tfsmetrics.NewCommitCollection(*project, azureClient, false, nil)
 						iter, err := commits.GetCommitIterator()
 						if err != nil {
 							return err
@@ -99,7 +103,7 @@ func CreateMetricsApp(prjPath string) *cli.App {
 					for _, project := range projectNames {
 						if *project == prjName{
 							fmt.Printf("\t\t\tПроект %s:\n\n\n", *project)
-							commits := tfsmetrics.NewCommitCollection(*project, azureClient)
+							commits := tfsmetrics.NewCommitCollection(*project, azureClient, false, nil)
 							iter, err := commits.GetCommitIterator()
 							if err != nil {
 								return err
@@ -146,8 +150,12 @@ func CreateMetricsApp(prjPath string) *cli.App {
 
 func exists(path string) (bool, error) {
 	_, err := os.Stat(path)
-	if err == nil { return true, nil }
-	if os.IsNotExist(err) { return false, nil }
+	if err == nil {
+		return true, nil
+	}
+	if os.IsNotExist(err) {
+		return false, nil
+	}
 	return false, err
 }
 
@@ -179,7 +187,7 @@ func WriteConfigFile(filePath string, config *azure.Config) error {
 	return err
 }
 
-func printFullCommit(commit *tfsmetrics.Commit) {
+func printFullCommit(commit *repointerface.Commit) {
 	fmt.Printf("Author: %s <%s>\n", commit.Author, commit.Email)
 	fmt.Printf("Date: %s\n", commit.Date.Format("2006-01-02 15:04:05"))
 	fmt.Printf("%d rows added and %d rows deleted\n", commit.AddedRows, commit.DeletedRows)
@@ -187,14 +195,14 @@ func printFullCommit(commit *tfsmetrics.Commit) {
 }
 
 // Эмуляция получения коммитов(ченджсетов). Будет удалена.
-func getCommits() *[]tfsmetrics.Commit {
+func getCommits() *[]repointerface.Commit {
 	n := 10
-	commits := make([]tfsmetrics.Commit, 0, n)
+	commits := make([]repointerface.Commit, 0, n)
 	for i := 0; i < n; i++ {
-		commits = append(commits, tfsmetrics.Commit{Author: "Author's Name",
+		commits = append(commits, repointerface.Commit{Author: "Author's Name",
 			Email: "testemail@gmail.com", AddedRows: 58, DeletedRows: 7,
-			Date: time.Date(2020, time.Month(i), i*2, i+1, i*3, 0, 0, time.UTC),
-			Message: "Commit message", Hash: "2e4ca12s" })
+			Date:    time.Date(2020, time.Month(i), i*2, i+1, i*3, 0, 0, time.UTC),
+			Message: "Commit message", Hash: "2e4ca12s"})
 	}
 	return &commits
 }
@@ -217,3 +225,4 @@ func connect(prjPath string) (*azure.Azure, error) {
 	}
 	return azureClient, err
 }
+

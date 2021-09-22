@@ -17,9 +17,9 @@ type AzureInterface interface {
 	TfvcClientConnection() error        // для Repository.Open()
 	ListOfProjects() ([]*string, error) // Получаем список проектов
 
-	GetChangesets(nameOfProject string) ([]*int, error)                  // Получает все id ченджсетов проекта
-	GetChangesetChanges(id *int, project string) (*ChangeSet, error)     // получает все изминения для конкретного changeSet
-	GetItemVersions(ChangesUrl string) (int, int)                        // Находит искомую и предыдущую версию файла, возвращает их юрл'ы
+	GetChangesets(nameOfProject string) ([]*int, error)                          // Получает все id ченджсетов проекта
+	GetChangesetChanges(id *int, project string) (*ChangeSet, error)             // получает все изминения для конкретного changeSet
+	GetItemVersions(ChangesUrl string) (int, int)                                // Находит искомую и предыдущую версию файла, возвращает их юрл'ы
 	ChangedRows(currentFileUrl string, PreviousFileUrl string) (int, int, error) // Принимает ссылки на разные версии файлов возвращает Добавленные и Удаленные строки
 }
 
