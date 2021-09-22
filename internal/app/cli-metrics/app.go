@@ -27,7 +27,7 @@ func CreateMetricsApp(prjPath string) *cli.App {
 	//	return nil
 	//}
 	app.EnableBashCompletion = true
-	app.Version = "0.01"
+	app.Version = "0.3"
 	app.Authors = []*cli.Author {
 		{ Name: "Андрей Назаренко" },
 		{ Name: "Артем Богданов" },
