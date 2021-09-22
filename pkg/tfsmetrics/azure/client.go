@@ -41,9 +41,9 @@ type Azure struct {
 	TfvcClient tfvc.Client
 }
 
-func NewAzure(config *Config) *Azure {
+func NewAzure(conf *Config) AzureInterface {
 	return &Azure{
-		Config: config,
+		Config: conf,
 	}
 }
 
@@ -104,7 +104,7 @@ func (a *Azure) GetChangesetChanges(id *int, project string) (*ChangeSet, error)
 	// }
 	changes, err := a.TfvcClient.GetChangeset(a.Config.Context, tfvc.GetChangesetArgs{Id: id, Project: &project})
 	if err != nil {
-		return &ChangeSet{}, err
+		return nil, err
 	}
 	messg := ""
 	if changes.Comment != nil {

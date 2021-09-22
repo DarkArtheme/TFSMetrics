@@ -6,7 +6,6 @@ import (
 	"go-marathon-team-3/pkg/tfsmetrics/store"
 )
 
-
 type commitsCollection struct {
 	nameOfProject string
 	azure         azure.AzureInterface
@@ -16,7 +15,7 @@ type commitsCollection struct {
 }
 
 // Если cache = false, то в store передаем nil
-func NewCommitCollection(nameOfProject string, azure *azure.Azure, cache bool, store store.Store) repointerface.Repository {
+func NewCommitCollection(nameOfProject string, azure azure.AzureInterface, cache bool, store store.Store) repointerface.Repository {
 	return &commitsCollection{
 		nameOfProject: nameOfProject,
 		azure:         azure,

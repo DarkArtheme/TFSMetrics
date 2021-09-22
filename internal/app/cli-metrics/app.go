@@ -18,7 +18,6 @@ import (
 )
 
 func CreateMetricsApp(prjPath string) *cli.App {
-	var azureClient *azure.Azure
 	app := cli.NewApp()
 	app.Name = "cli-metrics"
 	app.Usage = "CLI для взаимодействия с библиотекой"
@@ -28,23 +27,23 @@ func CreateMetricsApp(prjPath string) *cli.App {
 	//}
 	app.EnableBashCompletion = true
 	app.Version = "0.3"
-	app.Authors = []*cli.Author {
-		{ Name: "Андрей Назаренко" },
-		{ Name: "Артем Богданов" },
-		{ Name: "Алексей Вологдин" },
+	app.Authors = []*cli.Author{
+		{Name: "Андрей Назаренко"},
+		{Name: "Артем Богданов"},
+		{Name: "Алексей Вологдин"},
 	}
 	var url string
 	var token string
 	app.Commands = []*cli.Command{
 		{
-			Name: "config",
+			Name:    "config",
 			Aliases: []string{},
-			Usage: "установка параметров, необходимых для подключения к Azure",
-			Flags: []cli.Flag {
-				&cli.StringFlag {
-					Name: "organization-url",
-					Aliases: []string{"url", "u"},
-					Usage: "url для подключения к Azure",
+			Usage:   "установка параметров, необходимых для подключения к Azure",
+			Flags: []cli.Flag{
+				&cli.StringFlag{
+					Name:        "organization-url",
+					Aliases:     []string{"url", "u"},
+					Usage:       "url для подключения к Azure",
 					Destination: &url,
 				},
 				&cli.StringFlag{
@@ -78,7 +77,7 @@ func CreateMetricsApp(prjPath string) *cli.App {
 			Action: func(context *cli.Context) error {
 				var err error
 				prjName := context.Args().Get(0)
-				azureClient, err = connect(prjPath)
+				azureClient, err := connect(prjPath)
 				if err != nil {
 					return err
 				}
@@ -87,7 +86,7 @@ func CreateMetricsApp(prjPath string) *cli.App {
 					return err
 				}
 				if prjName == "" {
-					fmt.Println("Название проекта не было указано, информация по коммитам будет выведена по всем проектам:\n")
+					fmt.Println("Название проекта не было указано, информация по коммитам будет выведена по всем проектам:")
 					for _, project := range projectNames {
 						printProjectName(*project)
 						commits := tfsmetrics.NewCommitCollection(*project, azureClient, false, nil)
@@ -101,7 +100,7 @@ func CreateMetricsApp(prjPath string) *cli.App {
 					}
 				} else {
 					for _, project := range projectNames {
-						if *project == prjName{
+						if *project == prjName {
 							printProjectName(*project)
 							commits := tfsmetrics.NewCommitCollection(*project, azureClient, false, nil)
 							iter, err := commits.GetCommitIterator()
@@ -123,12 +122,12 @@ func CreateMetricsApp(prjPath string) *cli.App {
 			},
 		},
 		{
-			Name: "list",
+			Name:    "list",
 			Aliases: []string{},
-			Usage: "вывод на экран названий всех проектов в репозитории",
+			Usage:   "вывод на экран названий всех проектов в репозитории",
 			Action: func(context *cli.Context) error {
 				var err error
-				azureClient, err = connect(prjPath)
+				azureClient, err := connect(prjPath)
 				if err != nil {
 					return err
 				}
@@ -138,7 +137,7 @@ func CreateMetricsApp(prjPath string) *cli.App {
 				}
 				fmt.Println("Доступны следующие проекты:")
 				for ind, project := range projectNames {
-					fmt.Printf("%d) %s\n",ind + 1, *project)
+					fmt.Printf("%d) %s\n", ind+1, *project)
 				}
 				return nil
 			},
@@ -215,9 +214,12 @@ func getCommits() *[]repointerface.Commit {
 	return &commits
 }
 
-func connect(prjPath string) (*azure.Azure, error) {
+func connect(prjPath string) (azure.AzureInterface, error) {
 	filePath := path.Join(prjPath, "configs/config.yaml")
 	config, err := ReadConfigFile(filePath)
+	if err != nil {
+		return nil, err
+	}
 	if config.OrganizationUrl == "" && config.Token == "" {
 		return nil, errors.New("отсутствуют параметры подключения (cli-metrics config)")
 	} else if config.OrganizationUrl == "" {
@@ -233,4 +235,3 @@ func connect(prjPath string) (*azure.Azure, error) {
 	}
 	return azureClient, err
 }
-
