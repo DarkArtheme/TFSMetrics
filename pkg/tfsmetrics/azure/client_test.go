@@ -2,7 +2,8 @@ package azure
 
 import (
 	"errors"
-	"go-marathon-team-3/pkg/tfsmetrics/mock_tfvc_test"
+	"go-marathon-team-3/pkg/tfsmetrics/mock"
+
 	"time"
 
 	"testing"
@@ -18,7 +19,7 @@ import (
 func TestAzure_GetChangesetChanges(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	mockedClient := mock_tfvc_test.NewMockClient(ctrl)
+	mockedClient := mock.NewMockClient(ctrl)
 
 	conf := NewConfig()
 	azure := Azure{

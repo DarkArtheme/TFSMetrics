@@ -98,10 +98,7 @@ func (a *Azure) GetChangesets(nameOfProject string) ([]*int, error) {
 }
 
 func (a *Azure) GetChangesetChanges(id *int, project string) (*ChangeSet, error) {
-	// changesHash, err := a.TfvcClient.GetChangesetChanges(a.config.Context, tfvc.GetChangesetChangesArgs{Id: id})
-	// if err != nil {
-	// 	return &tfsmetrics.Commit{}, err
-	// }
+
 	changes, err := a.TfvcClient.GetChangeset(a.Config.Context, tfvc.GetChangesetArgs{Id: id, Project: &project})
 	if err != nil {
 		return nil, err
@@ -119,7 +116,7 @@ func (a *Azure) GetChangesetChanges(id *int, project string) (*ChangeSet, error)
 		Date:        changes.CreatedDate.Time,
 		Message:     messg,
 	}
-	// fmt.Println(changesHash.Value[0].Item["hashValue"])
+
 	return commit, nil
 }
 

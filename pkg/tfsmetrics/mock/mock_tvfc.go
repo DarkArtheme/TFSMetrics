@@ -2,7 +2,7 @@
 // Source: go/pkg/mod/github.com/microsoft/azure-devops-go-api/azuredevops@v1.0.0-b5/tfvc/client.go
 
 // Package mock_tfvc is a generated GoMock package.
-package mock_tfvc_test
+package mock
 
 import (
 	context "context"
