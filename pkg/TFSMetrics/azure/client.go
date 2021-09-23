@@ -1,6 +1,7 @@
 package azure
 
 import (
+	"fmt"
 	"io"
 	"strings"
 	"sync"
@@ -108,11 +109,11 @@ func (a *Azure) GetChangesetChanges(id *int, project string) (*ChangeSet, error)
 		messg = *changes.Comment
 	}
 
-	// changesHash, err := a.TfvcClient.GetChangesetChanges(a.Config.Context, tfvc.GetChangesetChangesArgs{Id: id})
-	// if err != nil {
-	// 	return nil, err
-	// }
-	// // fmt.Println(changesHash.Value[0].Item.(map[string]interface{}))
+	//changesHash, err := a.TfvcClient.GetChangesetChanges(a.Config.Context, tfvc.GetChangesetChangesArgs{Id: id})
+	if err != nil {
+		return nil, err
+	}
+	//fmt.Println(changesHash.Value[0].Item.(map[string]interface{}))
 
 	commit := &ChangeSet{
 		ProjectName: project,
@@ -122,12 +123,17 @@ func (a *Azure) GetChangesetChanges(id *int, project string) (*ChangeSet, error)
 		Date:        changes.CreatedDate.Time,
 		Message:     messg,
 	}
-	// fmt.Println(changesHash.Value[0].Item["hashValue"])
+	//fmt.Println(changesHash.Value[0].Item.(map[string]interface{})["version"])
 	return commit, nil
 }
 
-func (a *Azure) ChangedRows(currentFileUrl string, PreviousFileUrl string) (int, int, error) {
-	//GET FILES
+func (a *Azure) ChangedRows(nameProject string, currentFileUrl string, PreviousFileUrl string) (int, int, error) {
+	//1 GET FILES
+	_, previousVersion := a.GetItemVersions(nameProject) //получить версии изменений
+	if previousVersion == 0 {                            //посчитать изменения только в текущей версии
+
+	}
+
 	item, err := a.TfvcClient.GetItemContent(a.Config.Context, tfvc.GetItemContentArgs{Path: &currentFileUrl})
 	if err != nil {
 		return 0, 0, err
@@ -138,7 +144,7 @@ func (a *Azure) ChangedRows(currentFileUrl string, PreviousFileUrl string) (int,
 		return 0, 0, err
 	}
 
-	ver := "24" // заменить на код для разных версий
+	ver := fmt.Sprint(previousVersion) // заменить на код для разных версий
 	item1, err := a.TfvcClient.GetItemContent(a.Config.Context, tfvc.GetItemContentArgs{Path: &currentFileUrl,
 		VersionDescriptor: &git.TfvcVersionDescriptor{Version: &ver}})
 	if err != nil {
@@ -149,42 +155,39 @@ func (a *Azure) ChangedRows(currentFileUrl string, PreviousFileUrl string) (int,
 		return 0, 0, err
 	}
 
-	//transform array byte in string
-	currentFile := string(b1)
-	previousFile := string(b2)
+	//2 конвертируем полученные данные в map
+	wg := sync.WaitGroup{}
+	wg.Add(2)
+	var currentStringsMap, copyCurrentStringsMap, previousStringsMap, copyPreviousStringsMap map[int]string
+	go transformArrByteToMap(&b1, &wg, &currentStringsMap, &copyCurrentStringsMap)
+	go transformArrByteToMap(&b2, &wg, &previousStringsMap, &copyPreviousStringsMap)
+	wg.Wait()
 
-	//split string
-	currentStrings := strings.Split(currentFile, "\n")
-	previousStrings := strings.Split(previousFile, "\n")
-
-	//ADD STRINGS IN MAP
-	//create maps
-	currentStringsMap := make(map[int]string, len(currentStrings))
-	copyCurrentStringsMap := make(map[int]string, len(currentStrings))
-	previousStringsMap := make(map[int]string, len(previousStrings))
-	copyPreviousStringsMap := make(map[int]string, len(previousStrings))
-	//add strings
-	for k, v := range currentStrings {
-		currentStringsMap[k] = v
-		copyCurrentStringsMap[k] = v
-	}
-	for k, v := range previousStrings {
-		previousStringsMap[k] = v
-		copyPreviousStringsMap[k] = v
-	}
-
-	//COUNT ADDED STRINGS
+	//3 счатаем добавленные строки
 	//counters
 	addedRows := 0
 	deletedRows := 0
 
-	wg := sync.WaitGroup{} //for asynchrony
 	wg.Add(2)
 	go countAddedRows(copyCurrentStringsMap, copyPreviousStringsMap, &addedRows, &wg) //count added strings
 	go countDeleteRows(currentStringsMap, previousStringsMap, &deletedRows, &wg)      //count delete strings
 	wg.Wait()
 
 	return addedRows, deletedRows, err
+}
+
+func transformArrByteToMap(arr *[]byte, wg *sync.WaitGroup, transformMap, transformMapCopy *map[int]string) {
+	defer wg.Done()
+	transformString := string(*arr)                             //transform array byte in string
+	arrTransformStrings := strings.Split(transformString, "\n") //split string
+	//create maps
+	*transformMap = make(map[int]string, len(arrTransformStrings))
+	*transformMapCopy = make(map[int]string, len(arrTransformStrings))
+	//add strings in map
+	for k, v := range arrTransformStrings {
+		(*transformMap)[k] = v
+		(*transformMapCopy)[k] = v
+	}
 }
 
 func countAddedRows(currentStringsMap, previousStringsMap map[int]string, addedRows *int, wg *sync.WaitGroup) {
@@ -227,5 +230,10 @@ func countDeleteRows(currentStringsMap, previousStringsMap map[int]string, delet
 
 // заглушка чтобы избавиться от ошибки нереализованного интерфейса
 func (a *Azure) GetItemVersions(ChangesUrl string) (int, int) {
-	return 0, 0
+	changesets, _ := a.GetChangesets(ChangesUrl)
+	if len(changesets) > 1 {
+		return *(changesets)[0], *(changesets)[1]
+	}
+
+	return *(changesets)[0], 0
 }
