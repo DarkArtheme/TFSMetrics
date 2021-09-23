@@ -6,6 +6,7 @@ import (
 	"go-marathon-team-3/pkg/tfsmetrics"
 	"go-marathon-team-3/pkg/tfsmetrics/azure"
 	"go-marathon-team-3/pkg/tfsmetrics/repointerface"
+	"go-marathon-team-3/pkg/tfsmetrics/store"
 
 	"github.com/urfave/cli/v2"
 
@@ -32,6 +33,8 @@ func CreateMetricsApp(prjPath string) *cli.App {
 		{Name: "Артем Богданов"},
 		{Name: "Алексей Вологдин"},
 	}
+	cacheEnabled := true
+	localStore, _ := store.NewStore()
 	var url string
 	var token string
 	app.Commands = []*cli.Command{
@@ -89,7 +92,8 @@ func CreateMetricsApp(prjPath string) *cli.App {
 					fmt.Println("Название проекта не было указано, информация по коммитам будет выведена по всем проектам:")
 					for _, project := range projectNames {
 						printProjectName(*project)
-						commits := tfsmetrics.NewCommitCollection(*project, azureClient, false, nil)
+						_ = localStore.InitProject(*project)
+						commits := tfsmetrics.NewCommitCollection(*project, azureClient, cacheEnabled, localStore)
 						iter, err := commits.GetCommitIterator()
 						if err != nil {
 							return err
@@ -102,7 +106,8 @@ func CreateMetricsApp(prjPath string) *cli.App {
 					for _, project := range projectNames {
 						if *project == prjName {
 							printProjectName(*project)
-							commits := tfsmetrics.NewCommitCollection(*project, azureClient, false, nil)
+							_ = localStore.InitProject(*project)
+							commits := tfsmetrics.NewCommitCollection(*project, azureClient, cacheEnabled, localStore)
 							iter, err := commits.GetCommitIterator()
 							if err != nil {
 								return err
@@ -113,10 +118,6 @@ func CreateMetricsApp(prjPath string) *cli.App {
 							break
 						}
 					}
-				}
-				commits := getCommits()
-				for _, commit := range *commits {
-					printFullCommit(&commit)
 				}
 				return nil
 			},
