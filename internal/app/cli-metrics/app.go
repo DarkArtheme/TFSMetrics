@@ -1,6 +1,7 @@
 package cli_metrics
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"go-marathon-team-3/pkg/tfsmetrics"
@@ -13,12 +14,13 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-	"time"
-
-	"gopkg.in/yaml.v3"
 )
 
-func CreateMetricsApp(prjPath string) *cli.App {
+type cliSettings struct {
+	CacheEnabled bool `json:"cache-enabled"`
+}
+
+func CreateMetricsApp(prjPath *string) *cli.App {
 	app := cli.NewApp()
 	app.Name = "cli-metrics"
 	app.Usage = "CLI для взаимодействия с библиотекой"
@@ -27,38 +29,46 @@ func CreateMetricsApp(prjPath string) *cli.App {
 	//	return nil
 	//}
 	app.EnableBashCompletion = true
-	app.Version = "0.3"
+	app.Version = "0.5"
 	app.Authors = []*cli.Author{
 		{Name: "Андрей Назаренко"},
 		{Name: "Артем Богданов"},
 		{Name: "Алексей Вологдин"},
 	}
-	cacheEnabled := true
+	settingsPath := path.Join(*prjPath, "configs/cli-settings.json")
+	settings, _ := ReadSettingsFile(&settingsPath)
 	localStore, _ := store.NewStore()
 	var url string
 	var token string
-	app.Commands = []*cli.Command{
+	var cache string
+	app.Commands = []*cli.Command {
 		{
 			Name:    "config",
 			Aliases: []string{},
 			Usage:   "установка параметров, необходимых для подключения к Azure",
 			Flags: []cli.Flag{
-				&cli.StringFlag{
+				&cli.StringFlag {
 					Name:        "organization-url",
 					Aliases:     []string{"url", "u"},
 					Usage:       "url для подключения к Azure",
 					Destination: &url,
 				},
-				&cli.StringFlag{
+				&cli.StringFlag {
 					Name:        "access-token",
 					Aliases:     []string{"token", "t"},
 					Usage:       "personal access token для подключения к Azure",
 					Destination: &token,
 				},
+				&cli.StringFlag {
+					Name: "cache-enabled",
+					Aliases: []string{"cache", "c"},
+					Usage: "логический флаг следует ли использовать кеш при работе программы",
+					Destination: &cache,
+				},
 			},
 			Action: func(c *cli.Context) error {
-				filePath := path.Join(prjPath, "configs/config.yaml")
-				config, err := ReadConfigFile(filePath)
+				configPath := path.Join(*prjPath, "configs/config.json")
+				config, err := ReadConfigFile(&configPath)
 				if err != nil {
 					return err
 				}
@@ -68,19 +78,27 @@ func CreateMetricsApp(prjPath string) *cli.App {
 				if token != "" {
 					config.Token = token
 				}
-				err = WriteConfigFile(filePath, config)
-				fmt.Printf("Current config:\nURL: %s\nToken: %s\n", config.OrganizationUrl, config.Token)
+				if cache == "true"  {
+					settings.CacheEnabled = true
+				} else if cache != "" {
+					settings.CacheEnabled = false
+				}
+				err = WriteConfigFile(&configPath, config)
+				err = WriteSettingsFile(&settingsPath, settings)
+				fmt.Printf("Current config:\nURL: %s\nToken: %s\nCacheEnabled: %t\n", config.OrganizationUrl,
+					config.Token, settings.CacheEnabled)
 				return err
 			},
 		},
 		{
-			Name:    "log",
+			Name:	"log",
 			Aliases: []string{},
 			Usage:   "получение информации обо всех коммитах",
 			Action: func(context *cli.Context) error {
 				var err error
 				prjName := context.Args().Get(0)
 				azureClient, err := connect(prjPath)
+				settings, _ := ReadSettingsFile(&settingsPath)
 				if err != nil {
 					return err
 				}
@@ -91,31 +109,15 @@ func CreateMetricsApp(prjPath string) *cli.App {
 				if prjName == "" {
 					fmt.Println("Название проекта не было указано, информация по коммитам будет выведена по всем проектам:")
 					for _, project := range projectNames {
-						printProjectName(*project)
-						_ = localStore.InitProject(*project)
-						commits := tfsmetrics.NewCommitCollection(*project, azureClient, cacheEnabled, localStore)
-						iter, err := commits.GetCommitIterator()
-						if err != nil {
-							return err
-						}
-						for commit, err := iter.Next(); err == nil; commit, err = iter.Next() {
-							printFullCommit(commit)
-						}
+						_ = processProject(project, &azureClient, settings.CacheEnabled, &localStore)
 					}
 				} else {
 					for _, project := range projectNames {
 						if *project == prjName {
-							printProjectName(*project)
-							_ = localStore.InitProject(*project)
-							commits := tfsmetrics.NewCommitCollection(*project, azureClient, cacheEnabled, localStore)
-							iter, err := commits.GetCommitIterator()
+							err = processProject(project, &azureClient, settings.CacheEnabled, &localStore)
 							if err != nil {
 								return err
 							}
-							for commit, err := iter.Next(); err == nil; commit, err = iter.Next() {
-								printFullCommit(commit)
-							}
-							break
 						}
 					}
 				}
@@ -159,32 +161,61 @@ func exists(path string) (bool, error) {
 	return false, err
 }
 
-func ReadConfigFile(filePath string) (config *azure.Config, err error) {
+func ReadConfigFile(filePath *string) (config *azure.Config, err error) {
 	config = azure.NewConfig()
-	ex, _ := exists(filePath)
+	ex, _ := exists(*filePath)
 	if !ex {
-		output, _ := os.Create(filePath)
+		output, _ := os.Create(*filePath)
 		defer output.Close()
-		yamlEncoder := yaml.NewEncoder(output)
-		err = yamlEncoder.Encode(config)
+		jsonEncoder := json.NewEncoder(output)
+		err = jsonEncoder.Encode(config)
 	}
-	data, err := ioutil.ReadFile(filePath)
+	data, err := ioutil.ReadFile(*filePath)
 	if err != nil {
 		return
 	}
-	err = yaml.Unmarshal(data, &config)
+	err = json.Unmarshal(data, &config)
 	return
 }
 
-func WriteConfigFile(filePath string, config *azure.Config) error {
-	output, err := os.Create(filePath)
+func WriteConfigFile(filePath *string, config *azure.Config) error {
+	output, err := os.Create(*filePath)
 	if err != nil {
 		return err
 	}
 	defer output.Close()
-	yamlEncoder := yaml.NewEncoder(output)
-	err = yamlEncoder.Encode(config)
+	jsonEncoder := json.NewEncoder(output)
+	err = jsonEncoder.Encode(config)
 	return err
+}
+
+func WriteSettingsFile(filePath *string, settings *cliSettings) error {
+	output, err := os.Create(*filePath)
+	if err != nil {
+		return err
+	}
+	defer output.Close()
+	jsonEncoder := json.NewEncoder(output)
+	err = jsonEncoder.Encode(settings)
+	return err
+}
+
+func ReadSettingsFile(filePath *string) (settings *cliSettings, err error) {
+	settings = &cliSettings{CacheEnabled: true}
+	ex, _ := exists(*filePath)
+	if !ex {
+		output, _ := os.Create(*filePath)
+		defer output.Close()
+		jsonEncoder := json.NewEncoder(output)
+		err = jsonEncoder.Encode(settings)
+		return
+	}
+	data, err := ioutil.ReadFile(*filePath)
+	if err != nil {
+		return
+	}
+	err = json.Unmarshal(data, &settings)
+	return
 }
 
 func printFullCommit(commit *repointerface.Commit) {
@@ -195,29 +226,34 @@ func printFullCommit(commit *repointerface.Commit) {
 	fmt.Println("---------------------------------------------------------------------------------------------------")
 }
 
-func printProjectName(name string) {
+func printProjectName(name *string) {
 	fmt.Println("---------------------------------------------------------------------------------------------------")
-	fmt.Printf("\t\t\tПроект %s:\n", name)
+	fmt.Printf("\t\t\tПроект %s:\n", *name)
 	fmt.Println("---------------------------------------------------------------------------------------------------")
 	fmt.Printf("\n\n")
 }
 
-// Эмуляция получения коммитов(ченджсетов). Будет удалена.
-func getCommits() *[]repointerface.Commit {
-	n := 10
-	commits := make([]repointerface.Commit, 0, n)
-	for i := 0; i < n; i++ {
-		commits = append(commits, repointerface.Commit{Author: "Author's Name",
-			Email: "testemail@gmail.com", AddedRows: 58, DeletedRows: 7,
-			Date:    time.Date(2020, time.Month(i), i*2, i+1, i*3, 0, 0, time.UTC),
-			Message: "Commit message", Hash: "2e4ca12s"})
+func processProject(project *string, azureClient *azure.AzureInterface, cacheEnabled bool, localStore *store.Store) error {
+	printProjectName(project)
+	commits := tfsmetrics.NewCommitCollection(*project, *azureClient, cacheEnabled, *localStore)
+	err := commits.Open()
+	if err != nil {
+		return err
 	}
-	return &commits
+	iter, err := commits.GetCommitIterator()
+	if err != nil {
+		return err
+	}
+	for commit, err := iter.Next(); err == nil; commit, err = iter.Next() {
+		printFullCommit(commit)
+	}
+	return nil
 }
 
-func connect(prjPath string) (azure.AzureInterface, error) {
-	filePath := path.Join(prjPath, "configs/config.yaml")
-	config, err := ReadConfigFile(filePath)
+
+func connect(prjPath *string) (azure.AzureInterface, error) {
+	filePath := path.Join(*prjPath, "configs/config.json")
+	config, err := ReadConfigFile(&filePath)
 	if err != nil {
 		return nil, err
 	}
