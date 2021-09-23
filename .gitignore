@@ -32,4 +32,6 @@ cmake-build-*/
 .vscode/
 
 # config.yaml
-configs/config.yaml
+configs/config.json
+configs/cli-settings.json
+assets.db

@@ -3,9 +3,9 @@ package azure
 import "context"
 
 type Config struct {
-	OrganizationUrl string `yaml:"organization_url"`
-	Token           string `yaml:"personal_access_token"`
-	Context         context.Context `yaml:"-"`
+	OrganizationUrl string `json:"organization_url"`
+	Token           string `json:"personal_access_token"`
+	Context         context.Context `json:"-"`
 }
 
 func NewConfig() *Config {

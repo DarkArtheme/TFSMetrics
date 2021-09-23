@@ -14,7 +14,7 @@ func main() {
 	for i := 0; i < 2; i++ {
 		basepath = filepath.Dir(basepath)
 	}
-	app := cli_metrics.CreateMetricsApp(basepath)
+	app := cli_metrics.CreateMetricsApp(&basepath)
 	err := app.Run(os.Args)
 	if err != nil {
 		log.Fatal(err)
