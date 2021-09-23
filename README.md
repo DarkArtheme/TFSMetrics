@@ -13,7 +13,7 @@
 2. Далее можно запускать cli просто введя:
 > cli-metrics
 3. Введите следующую команду, чтобы настроить параметры подключения:
-> cli-metrics config --url "SOME_TFS_URL" --token "YOUR_PERSONAL_ACCESS_TOKEN"
+> cli-metrics config --url "SOME_TFS_URL" --token "YOUR_PERSONAL_ACCESS_TOKEN" --cache "TRUE_IF_YOU_WANT_CACHE"
 4. Введите следующую команду, чтобы вывести список всех проектов:
 > cli-metrics list
 5. Введите следующую команду, чтобы посмотреть список всех коммитов:
