@@ -131,7 +131,7 @@ func (a *Azure) ChangedRows(nameProject string, currentFileUrl string, PreviousF
 	//1 GET FILES
 	_, previousVersion := a.GetItemVersions(nameProject) //получить версии изменений
 	if previousVersion == 0 {                            //посчитать изменения только в текущей версии
-
+		return a.getAddedRowsOneFile(currentFileUrl)
 	}
 
 	item, err := a.TfvcClient.GetItemContent(a.Config.Context, tfvc.GetItemContentArgs{Path: &currentFileUrl})
@@ -174,6 +174,22 @@ func (a *Azure) ChangedRows(nameProject string, currentFileUrl string, PreviousF
 	wg.Wait()
 
 	return addedRows, deletedRows, err
+}
+
+func (a *Azure) getAddedRowsOneFile(currentFileUrl string) (int, int, error) {
+	item, err := a.TfvcClient.GetItemContent(a.Config.Context, tfvc.GetItemContentArgs{Path: &currentFileUrl})
+	if err != nil {
+		return 0, 0, err
+	}
+
+	b1, err := io.ReadAll(item)
+	if err != nil { //Read All File in array byte
+		return 0, 0, err
+	}
+
+	transformString := string(b1)                               //transform array byte in string
+	arrTransformStrings := strings.Split(transformString, "\n") //split string
+	return len(arrTransformStrings), 0, nil
 }
 
 func transformArrByteToMap(arr *[]byte, wg *sync.WaitGroup, transformMap, transformMapCopy *map[int]string) {
