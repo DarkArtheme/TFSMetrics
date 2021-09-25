@@ -44,8 +44,8 @@ func CreateMetricsApp(prjPath *string) *cli.App {
 	app.Commands = []*cli.Command {
 		{
 			Name:    "config",
-			Aliases: []string{},
-			Usage:   "установка параметров, необходимых для подключения к Azure",
+			Aliases: []string{"c"},
+			Usage:   "установка параметров, необходимых для подключения к Azure (подробнее см. cli-metrics config --help)",
 			Flags: []cli.Flag{
 				&cli.StringFlag {
 					Name:        "organization-url",
@@ -92,7 +92,7 @@ func CreateMetricsApp(prjPath *string) *cli.App {
 		},
 		{
 			Name:	"log",
-			Aliases: []string{},
+			Aliases: []string{"l"},
 			Usage:   "получение информации обо всех коммитах",
 			Action: func(context *cli.Context) error {
 				var err error
@@ -126,7 +126,7 @@ func CreateMetricsApp(prjPath *string) *cli.App {
 		},
 		{
 			Name:    "list",
-			Aliases: []string{},
+			Aliases: []string{"ls"},
 			Usage:   "вывод на экран названий всех проектов в репозитории",
 			Action: func(context *cli.Context) error {
 				var err error
