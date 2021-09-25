@@ -3,13 +3,11 @@ package exporter
 import (
 	"go-marathon-team-3/pkg/tfsmetrics"
 	"go-marathon-team-3/pkg/tfsmetrics/azure"
-	"go-marathon-team-3/pkg/tfsmetrics/store"
-	"log"
-	"net/http"
-	"os"
+	"sync"
 	"testing"
+	"time"
 
-	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -24,26 +22,22 @@ func Test_exporter_GetProjectMetrics(t *testing.T) {
 	projects, err := azure.ListOfProjects()
 	require.NoError(t, err)
 
-	store, err := store.TestStore()
-	require.NoError(t, err)
-	defer store.Close()
-	defer func() {
-		os.Remove(store.DB.Path())
-	}()
+	for _, project := range projects {
+		commmits := tfsmetrics.NewCommitCollection(*project, azure, false, nil)
+		err = commmits.Open()
+		require.NoError(t, err)
+		iter, err := commmits.GetCommitIterator()
+		require.NoError(t, err)
 
-	project := projects[1]
-	commmits := tfsmetrics.NewCommitCollection(*project, azure, true, store)
-	err = commmits.Open()
-	require.NoError(t, err)
-	iter, err := commmits.GetCommitIterator()
-	require.NoError(t, err)
+		exp := NewExporter()
+		exp.GetProjectMetrics(iter, *project)
 
-	exp := NewExporter()
-	exp.GetProjectMetrics(iter)
-
-	http.Handle("/metrics", promhttp.Handler())
-	if err := http.ListenAndServe(":8080", nil); err != nil {
-		log.Fatal(err)
 	}
-
+	wg := sync.WaitGroup{}
+	serv := NewPrometheusServer(&wg, time.Second*5)
+	serv.Start(":8080")
+	time.Sleep(time.Second * 30)
+	err = serv.Stop()
+	assert.NoError(t, err)
+	wg.Wait()
 }
