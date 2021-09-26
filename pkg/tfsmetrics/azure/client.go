@@ -1,13 +1,14 @@
 package azure
 
 import (
+	"fmt"
 	"io"
-	"net/http"
-	"os"
+	"strings"
 	"time"
 
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/core"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/git"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/tfvc"
 )
 
@@ -98,7 +99,6 @@ func (a *Azure) GetChangesets(nameOfProject string) ([]*int, error) {
 }
 
 func (a *Azure) GetChangesetChanges(id *int, project string) (*ChangeSet, error) {
-
 	changes, err := a.TfvcClient.GetChangeset(a.Config.Context, tfvc.GetChangesetArgs{Id: id, Project: &project})
 	if err != nil {
 		return nil, err
@@ -107,6 +107,16 @@ func (a *Azure) GetChangesetChanges(id *int, project string) (*ChangeSet, error)
 	if changes.Comment != nil {
 		messg = *changes.Comment
 	}
+	changesHash, err := a.TfvcClient.GetChangesetChanges(a.Config.Context, tfvc.GetChangesetChangesArgs{Id: id})
+	if err != nil {
+		return nil, err
+	}
+	//fmt.Println(changesHash.Value[0].Item.(map[string]interface{}))
+	//fmt.Println(changesHash.Value[0].Item.(map[string]interface{})["path"].(string), changesHash.Value[0].Item.(map[string]interface{})["version"])
+
+	version := fmt.Sprint(changesHash.Value[0].Item.(map[string]interface{})["version"]) //приводим к строке версию изменения
+	//получаем кол-во добавленных и удаленных строк
+	addedRows, deletedRows, err := a.ChangedRows(changesHash.Value[0].Item.(map[string]interface{})["path"].(string), version)
 
 	commit := &ChangeSet{
 		ProjectName: project,
@@ -115,78 +125,54 @@ func (a *Azure) GetChangesetChanges(id *int, project string) (*ChangeSet, error)
 		Email:       *changes.Author.UniqueName,
 		Date:        changes.CreatedDate.Time,
 		Message:     messg,
+		AddedRows:   addedRows,
+		DeletedRows: deletedRows,
 	}
-
+	//fmt.Println(changesHash.Value[0].Item.(map[string]interface{})["version"])
 	return commit, nil
 }
 
-func (a *Azure) ChangedRows(currentFileUrl string, PreviousFileUrl string) (int, int, error) {
-
-	//TODO: РАЗБИТЬ МЕТОД НА НЕСКОЛЬКО МАЛЕНЬКИХ
-
-	//1) СКАЧИВАНИЕ ФАЙЛОВ
-	filepath1 := ""
-	filepath2 := ""
-
-	out1, err := os.Create(filepath1) //создание нового файла для currentFielUrl
+func (a *Azure) ChangedRows(currentFileUrl, version string) (int, int, error) {
+	//1 GET FILES
+	//get current version
+	item, err := a.TfvcClient.GetItemContent(a.Config.Context, tfvc.GetItemContentArgs{Path: &currentFileUrl,
+		VersionDescriptor: &git.TfvcVersionDescriptor{Version: &version}})
 	if err != nil {
 		return 0, 0, err
 	}
-	defer out1.Close()
-
-	out2, err := os.Create(filepath2) //создание нового файла для PreviusFileUrl
-	if err != nil {
+	b1, err := io.ReadAll(item)
+	if err != nil { //Read All File in array byte
 		return 0, 0, err
 	}
-	defer out2.Close()
 
-	resp1, err := http.Get(currentFileUrl) //получаем актуальный файл
+	//get previous version
+	item1, err := a.TfvcClient.GetItemContent(a.Config.Context, tfvc.GetItemContentArgs{Path: &currentFileUrl,
+		VersionDescriptor: &git.TfvcVersionDescriptor{Version: &version, VersionOption: &git.TfvcVersionOptionValues.Previous}})
 	if err != nil {
-		return 0, 0, err
+		return a.getAddedRowsOneFile(&b1) //если нет прошлой версии считаем кол-во строк в текущем файле
 	}
-	defer resp1.Body.Close()
-
-	resp2, err := http.Get(PreviousFileUrl) //получаем предыдущий файл
-	if err != nil {
-		return 0, 0, err
-	}
-	defer resp2.Body.Close()
-
-	_, err = io.Copy(out1, resp1.Body) //файл для currentFiel записан
+	b2, err := io.ReadAll(item1)
 	if err != nil {
 		return 0, 0, err
 	}
 
-	_, err = io.Copy(out2, resp2.Body) //файл PreviusFile записан
-	if err != nil {
-		return 0, 0, err
-	}
+	//считаем добаленные и удаленные строки
+	addedRows, deletedRows := Diff(string(b2), string(b1))
+	return addedRows, deletedRows, nil
+}
 
-	//2) ОТКРЫТИЕ ФАЙЛОВ
-
-	//CurrentFileData, err := ioutil.ReadFile(filepath1)
-	//if err != nil {
-	//	return 0, 0, err
-	//}
-
-	//PreviusFileData, err := ioutil.ReadFile(filepath2)
-	//if err != nil {
-	//	return 0, 0, err
-	//}
-
-	//3) ОПРЕДЕЛЕНИЕ КОЛЛИЧЕСТВА СТРОК
-	savedRows := 0
-	deletedRows := 0
-	allRows := 0
-
-	//Считать хэши строк или напрямую сравнивать строкуи из CurrentFileData и PreviusFileData??????
-
-	addedRows := allRows - savedRows
-
-	return addedRows, deletedRows, err
+func (a *Azure) getAddedRowsOneFile(fileInBytes *[]byte) (int, int, error) {
+	transformString := string(*fileInBytes)                     //transform array byte in string
+	arrTransformStrings := strings.Split(transformString, "\n") //split string
+	return len(arrTransformStrings), 0, nil
 }
 
 // заглушка чтобы избавиться от ошибки нереализованного интерфейса
 func (a *Azure) GetItemVersions(ChangesUrl string) (int, int) {
-	return 0, 0
+	changesets, _ := a.GetChangesets(ChangesUrl)
+	if len(changesets) > 1 {
+		return *(changesets)[0], *(changesets)[1]
+	}
+
+	return *(changesets)[0], 0
 }
