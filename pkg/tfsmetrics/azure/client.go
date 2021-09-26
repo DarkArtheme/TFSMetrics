@@ -18,10 +18,9 @@ type AzureInterface interface {
 	TfvcClientConnection() error        // для Repository.Open()
 	ListOfProjects() ([]*string, error) // Получаем список проектов
 
-	GetChangesets(nameOfProject string) ([]*int, error)                          // Получает все id ченджсетов проекта
-	GetChangesetChanges(id *int, project string) (*ChangeSet, error)             // получает все изминения для конкретного changeSet
-	GetItemVersions(ChangesUrl string) (int, int)                                // Находит искомую и предыдущую версию файла, возвращает их юрл'ы
-	ChangedRows(currentFileUrl string, PreviousFileUrl string) (int, int, error) // Принимает ссылки на разные версии файлов возвращает Добавленные и Удаленные строки
+	GetChangesets(nameOfProject string) ([]*int, error)              // Получает все id ченджсетов проекта
+	GetChangesetChanges(id *int, project string) (*ChangeSet, error) // получает все изминения для конкретного changeSet
+	ChangedRows(currentFileUrl, version string) (int, int, error)    // Принимает ссылки на разные версии файлов возвращает Добавленные и Удаленные строки
 }
 
 type ChangeSet struct {
@@ -107,16 +106,33 @@ func (a *Azure) GetChangesetChanges(id *int, project string) (*ChangeSet, error)
 	if changes.Comment != nil {
 		messg = *changes.Comment
 	}
-	changesHash, err := a.TfvcClient.GetChangesetChanges(a.Config.Context, tfvc.GetChangesetChangesArgs{Id: id})
+	getChanges, err := a.TfvcClient.GetChangesetChanges(a.Config.Context, tfvc.GetChangesetChangesArgs{Id: id})
 	if err != nil {
 		return nil, err
 	}
-	//fmt.Println(changesHash.Value[0].Item.(map[string]interface{}))
-	//fmt.Println(changesHash.Value[0].Item.(map[string]interface{})["path"].(string), changesHash.Value[0].Item.(map[string]interface{})["version"])
 
-	version := fmt.Sprint(changesHash.Value[0].Item.(map[string]interface{})["version"]) //приводим к строке версию изменения
 	//получаем кол-во добавленных и удаленных строк
-	addedRows, deletedRows, err := a.ChangedRows(changesHash.Value[0].Item.(map[string]interface{})["path"].(string), version)
+	addedRows := 0
+	deletedRows := 0
+	for _, v := range getChanges.Value {
+		if v.Item.(map[string]interface{})["isFolder"] != nil {
+			if v.Item.(map[string]interface{})["isFolder"].(bool) {
+				continue
+			}
+		}
+
+		path := v.Item.(map[string]interface{})["path"].(string)
+		if isImage(path) {
+			continue
+		}
+
+		ar, dr, err := a.ChangedRows(path, fmt.Sprint(v.Item.(map[string]interface{})["version"]))
+		if err != nil {
+			return nil, err
+		}
+		addedRows += ar
+		deletedRows += dr
+	}
 
 	commit := &ChangeSet{
 		ProjectName: project,
@@ -124,55 +140,49 @@ func (a *Azure) GetChangesetChanges(id *int, project string) (*ChangeSet, error)
 		Author:      *changes.Author.DisplayName,
 		Email:       *changes.Author.UniqueName,
 		Date:        changes.CreatedDate.Time,
-		Message:     messg,
 		AddedRows:   addedRows,
 		DeletedRows: deletedRows,
+		Message:     messg,
 	}
-	//fmt.Println(changesHash.Value[0].Item.(map[string]interface{})["version"])
 	return commit, nil
 }
 
 func (a *Azure) ChangedRows(currentFileUrl, version string) (int, int, error) {
-	//1 GET FILES
-	//get current version
-	item, err := a.TfvcClient.GetItemContent(a.Config.Context, tfvc.GetItemContentArgs{Path: &currentFileUrl,
+	// Берем текущую версию файла
+	currentItemContent, err := a.TfvcClient.GetItemContent(a.Config.Context, tfvc.GetItemContentArgs{Path: &currentFileUrl,
 		VersionDescriptor: &git.TfvcVersionDescriptor{Version: &version}})
 	if err != nil {
 		return 0, 0, err
 	}
-	b1, err := io.ReadAll(item)
-	if err != nil { //Read All File in array byte
+	currentFile, err := io.ReadAll(currentItemContent)
+	if err != nil {
 		return 0, 0, err
 	}
 
-	//get previous version
-	item1, err := a.TfvcClient.GetItemContent(a.Config.Context, tfvc.GetItemContentArgs{Path: &currentFileUrl,
+	// Берем редыдущую версию файла
+	previousFileContent, err := a.TfvcClient.GetItemContent(a.Config.Context, tfvc.GetItemContentArgs{Path: &currentFileUrl,
 		VersionDescriptor: &git.TfvcVersionDescriptor{Version: &version, VersionOption: &git.TfvcVersionOptionValues.Previous}})
-	if err != nil {
-		return a.getAddedRowsOneFile(&b1) //если нет прошлой версии считаем кол-во строк в текущем файле
+	if err != nil { //если нет прошлой версии считаем кол-во строк в текущем файле
+		transformString := string(currentFile)
+		arrTransformStrings := strings.Split(transformString, "\n")
+		return len(arrTransformStrings), 0, nil
 	}
-	b2, err := io.ReadAll(item1)
+
+	previousFile, err := io.ReadAll(previousFileContent)
 	if err != nil {
 		return 0, 0, err
 	}
 
-	//считаем добаленные и удаленные строки
-	addedRows, deletedRows := Diff(string(b2), string(b1))
+	// Считаем добаленные и удаленные строки
+	addedRows, deletedRows := Diff(string(previousFile), string(currentFile))
 	return addedRows, deletedRows, nil
 }
 
-func (a *Azure) getAddedRowsOneFile(fileInBytes *[]byte) (int, int, error) {
-	transformString := string(*fileInBytes)                     //transform array byte in string
-	arrTransformStrings := strings.Split(transformString, "\n") //split string
-	return len(arrTransformStrings), 0, nil
-}
-
-// заглушка чтобы избавиться от ошибки нереализованного интерфейса
-func (a *Azure) GetItemVersions(ChangesUrl string) (int, int) {
-	changesets, _ := a.GetChangesets(ChangesUrl)
-	if len(changesets) > 1 {
-		return *(changesets)[0], *(changesets)[1]
+func isImage(path string) bool {
+	if strings.Contains(path, ".jpg") ||
+		strings.Contains(path, ".jpeg") ||
+		strings.Contains(path, ".png") {
+		return true
 	}
-
-	return *(changesets)[0], 0
+	return false
 }
