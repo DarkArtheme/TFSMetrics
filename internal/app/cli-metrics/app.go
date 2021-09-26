@@ -6,8 +6,12 @@ import (
 	"fmt"
 	"go-marathon-team-3/pkg/tfsmetrics"
 	"go-marathon-team-3/pkg/tfsmetrics/azure"
+	"go-marathon-team-3/pkg/tfsmetrics/exporter"
 	"go-marathon-team-3/pkg/tfsmetrics/repointerface"
 	"go-marathon-team-3/pkg/tfsmetrics/store"
+	"strconv"
+	"sync"
+	"time"
 
 	"github.com/urfave/cli/v2"
 
@@ -18,6 +22,7 @@ import (
 
 type cliSettings struct {
 	CacheEnabled bool `json:"cache-enabled"`
+	ExporterPort int `json:"exporter-port"`
 }
 
 func CreateMetricsApp(prjPath *string) *cli.App {
@@ -41,6 +46,7 @@ func CreateMetricsApp(prjPath *string) *cli.App {
 	var url string
 	var token string
 	var cache string
+	var port int
 	app.Commands = []*cli.Command {
 		{
 			Name:    "config",
@@ -65,6 +71,12 @@ func CreateMetricsApp(prjPath *string) *cli.App {
 					Usage: "логический флаг следует ли использовать кеш при работе программы",
 					Destination: &cache,
 				},
+				&cli.IntFlag {
+					Name: "exporter-port",
+					Aliases: []string{"port", "p"},
+					Usage: "номер порта, на котором запускается экспортер",
+					Destination: &port,
+				},
 			},
 			Action: func(c *cli.Context) error {
 				configPath := path.Join(*prjPath, "configs/config.json")
@@ -83,10 +95,17 @@ func CreateMetricsApp(prjPath *string) *cli.App {
 				} else if cache != "" {
 					settings.CacheEnabled = false
 				}
+				if port != settings.ExporterPort {
+					if port < 1024 || port > 65535{
+						return errors.New("Введите порт в диапазоне от 1024 до 65535!")
+					} else {
+						settings.ExporterPort = port
+					}
+				}
 				err = WriteConfigFile(&configPath, config)
 				err = WriteSettingsFile(&settingsPath, settings)
-				fmt.Printf("Current config:\nURL: %s\nToken: %s\nCacheEnabled: %t\n", config.OrganizationUrl,
-					config.Token, settings.CacheEnabled)
+				fmt.Printf("Текущая конфигурация:\nURL: %s\nToken: %s\nCacheEnabled: %t\nExporterPort: %d\n",
+					config.OrganizationUrl, config.Token, settings.CacheEnabled, settings.ExporterPort)
 				return err
 			},
 		},
@@ -121,6 +140,37 @@ func CreateMetricsApp(prjPath *string) *cli.App {
 						}
 					}
 				}
+				return nil
+			},
+		},
+		{
+			Name: "start-exporter",
+			Aliases: []string{"s"},
+			Usage: "запуск экспортера (для запуска в фоне введите: nohup cli-metrics start-exporter &)",
+			Action: func(context *cli.Context) error {
+				var err error
+				azureClient, err := connect(prjPath)
+				if err != nil {
+					return err
+				}
+				settings, _ := ReadSettingsFile(&settingsPath)
+				projectNames, err := azureClient.ListOfProjects()
+				if err != nil {
+					return err
+				}
+				for _, project := range projectNames {
+					commits := tfsmetrics.NewCommitCollection(*project, azureClient, settings.CacheEnabled, localStore)
+					err = commits.Open()
+					iter, _ := commits.GetCommitIterator()
+					exp := exporter.NewExporter()
+					exp.GetProjectMetrics(iter, *project)
+
+				}
+				fmt.Printf("Метрики доступны по адресу http://localhost:%d/metrics\n", settings.ExporterPort)
+				wg := sync.WaitGroup{}
+				serv := exporter.NewPrometheusServer(&wg, time.Second*5)
+				serv.Start(":" + strconv.Itoa(settings.ExporterPort))
+				wg.Wait()
 				return nil
 			},
 		},
@@ -201,7 +251,7 @@ func WriteSettingsFile(filePath *string, settings *cliSettings) error {
 }
 
 func ReadSettingsFile(filePath *string) (settings *cliSettings, err error) {
-	settings = &cliSettings{CacheEnabled: true}
+	settings = &cliSettings{CacheEnabled: true, ExporterPort: 8080}
 	ex, _ := exists(*filePath)
 	if !ex {
 		output, _ := os.Create(*filePath)
@@ -219,10 +269,10 @@ func ReadSettingsFile(filePath *string) (settings *cliSettings, err error) {
 }
 
 func printFullCommit(commit *repointerface.Commit) {
-	fmt.Printf("Author: %s <%s>\n", commit.Author, commit.Email)
-	fmt.Printf("Date: %s\n", commit.Date.Format("2006-01-02 15:04:05"))
-	fmt.Printf("%d rows added and %d rows deleted\n", commit.AddedRows, commit.DeletedRows)
-	fmt.Printf("Commit message:\n\n\t%s\n\n", commit.Message)
+	fmt.Printf("Автор: %s <%s>\n", commit.Author, commit.Email)
+	fmt.Printf("Дата: %s\n", commit.Date.Format("2006-01-02 15:04:05"))
+	fmt.Printf("%d строк добавлено и %d строк удалено\n", commit.AddedRows, commit.DeletedRows)
+	fmt.Printf("Сообщение:\n\n\t%s\n\n", commit.Message)
 	fmt.Println("---------------------------------------------------------------------------------------------------")
 }
 
