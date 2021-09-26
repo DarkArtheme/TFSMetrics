@@ -29,12 +29,8 @@ func CreateMetricsApp(prjPath *string) *cli.App {
 	app := cli.NewApp()
 	app.Name = "cli-metrics"
 	app.Usage = "CLI для взаимодействия с библиотекой"
-	//app.Action = func(c *cli.Context) error {
-	//	fmt.Println("Hello, team 3!")
-	//	return nil
-	//}
 	app.EnableBashCompletion = true
-	app.Version = "0.5"
+	app.Version = "0.9"
 	app.Authors = []*cli.Author{
 		{Name: "Андрей Назаренко"},
 		{Name: "Артем Богданов"},
