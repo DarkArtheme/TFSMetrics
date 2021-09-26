@@ -1,13 +1,14 @@
 package azure
 
 import (
+	"fmt"
 	"io"
-	"net/http"
-	"os"
+	"strings"
 	"time"
 
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/core"
+	"github.com/microsoft/azure-devops-go-api/azuredevops/git"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/tfvc"
 )
 
@@ -17,10 +18,9 @@ type AzureInterface interface {
 	TfvcClientConnection() error        // для Repository.Open()
 	ListOfProjects() ([]*string, error) // Получаем список проектов
 
-	GetChangesets(nameOfProject string) ([]*int, error)                          // Получает все id ченджсетов проекта
-	GetChangesetChanges(id *int, project string) (*ChangeSet, error)             // получает все изминения для конкретного changeSet
-	GetItemVersions(ChangesUrl string) (int, int)                                // Находит искомую и предыдущую версию файла, возвращает их юрл'ы
-	ChangedRows(currentFileUrl string, PreviousFileUrl string) (int, int, error) // Принимает ссылки на разные версии файлов возвращает Добавленные и Удаленные строки
+	GetChangesets(nameOfProject string) ([]*int, error)              // Получает все id ченджсетов проекта
+	GetChangesetChanges(id *int, project string) (*ChangeSet, error) // получает все изминения для конкретного changeSet
+	ChangedRows(currentFileUrl, version string) (int, int, error)    // Принимает ссылки на разные версии файлов возвращает Добавленные и Удаленные строки
 }
 
 type ChangeSet struct {
@@ -98,7 +98,6 @@ func (a *Azure) GetChangesets(nameOfProject string) ([]*int, error) {
 }
 
 func (a *Azure) GetChangesetChanges(id *int, project string) (*ChangeSet, error) {
-
 	changes, err := a.TfvcClient.GetChangeset(a.Config.Context, tfvc.GetChangesetArgs{Id: id, Project: &project})
 	if err != nil {
 		return nil, err
@@ -107,6 +106,33 @@ func (a *Azure) GetChangesetChanges(id *int, project string) (*ChangeSet, error)
 	if changes.Comment != nil {
 		messg = *changes.Comment
 	}
+	getChanges, err := a.TfvcClient.GetChangesetChanges(a.Config.Context, tfvc.GetChangesetChangesArgs{Id: id})
+	if err != nil {
+		return nil, err
+	}
+
+	//получаем кол-во добавленных и удаленных строк
+	addedRows := 0
+	deletedRows := 0
+	for _, v := range getChanges.Value {
+		if v.Item.(map[string]interface{})["isFolder"] != nil {
+			if v.Item.(map[string]interface{})["isFolder"].(bool) {
+				continue
+			}
+		}
+
+		path := v.Item.(map[string]interface{})["path"].(string)
+		if isImage(path) {
+			continue
+		}
+
+		ar, dr, err := a.ChangedRows(path, fmt.Sprint(v.Item.(map[string]interface{})["version"]))
+		if err != nil {
+			return nil, err
+		}
+		addedRows += ar
+		deletedRows += dr
+	}
 
 	commit := &ChangeSet{
 		ProjectName: project,
@@ -114,79 +140,49 @@ func (a *Azure) GetChangesetChanges(id *int, project string) (*ChangeSet, error)
 		Author:      *changes.Author.DisplayName,
 		Email:       *changes.Author.UniqueName,
 		Date:        changes.CreatedDate.Time,
+		AddedRows:   addedRows,
+		DeletedRows: deletedRows,
 		Message:     messg,
 	}
-
 	return commit, nil
 }
 
-func (a *Azure) ChangedRows(currentFileUrl string, PreviousFileUrl string) (int, int, error) {
-
-	//TODO: РАЗБИТЬ МЕТОД НА НЕСКОЛЬКО МАЛЕНЬКИХ
-
-	//1) СКАЧИВАНИЕ ФАЙЛОВ
-	filepath1 := ""
-	filepath2 := ""
-
-	out1, err := os.Create(filepath1) //создание нового файла для currentFielUrl
+func (a *Azure) ChangedRows(currentFileUrl, version string) (int, int, error) {
+	// Берем текущую версию файла
+	currentItemContent, err := a.TfvcClient.GetItemContent(a.Config.Context, tfvc.GetItemContentArgs{Path: &currentFileUrl,
+		VersionDescriptor: &git.TfvcVersionDescriptor{Version: &version}})
 	if err != nil {
 		return 0, 0, err
 	}
-	defer out1.Close()
-
-	out2, err := os.Create(filepath2) //создание нового файла для PreviusFileUrl
-	if err != nil {
-		return 0, 0, err
-	}
-	defer out2.Close()
-
-	resp1, err := http.Get(currentFileUrl) //получаем актуальный файл
-	if err != nil {
-		return 0, 0, err
-	}
-	defer resp1.Body.Close()
-
-	resp2, err := http.Get(PreviousFileUrl) //получаем предыдущий файл
-	if err != nil {
-		return 0, 0, err
-	}
-	defer resp2.Body.Close()
-
-	_, err = io.Copy(out1, resp1.Body) //файл для currentFiel записан
+	currentFile, err := io.ReadAll(currentItemContent)
 	if err != nil {
 		return 0, 0, err
 	}
 
-	_, err = io.Copy(out2, resp2.Body) //файл PreviusFile записан
+	// Берем редыдущую версию файла
+	previousFileContent, err := a.TfvcClient.GetItemContent(a.Config.Context, tfvc.GetItemContentArgs{Path: &currentFileUrl,
+		VersionDescriptor: &git.TfvcVersionDescriptor{Version: &version, VersionOption: &git.TfvcVersionOptionValues.Previous}})
+	if err != nil { //если нет прошлой версии считаем кол-во строк в текущем файле
+		transformString := string(currentFile)
+		arrTransformStrings := strings.Split(transformString, "\n")
+		return len(arrTransformStrings), 0, nil
+	}
+
+	previousFile, err := io.ReadAll(previousFileContent)
 	if err != nil {
 		return 0, 0, err
 	}
 
-	//2) ОТКРЫТИЕ ФАЙЛОВ
-
-	//CurrentFileData, err := ioutil.ReadFile(filepath1)
-	//if err != nil {
-	//	return 0, 0, err
-	//}
-
-	//PreviusFileData, err := ioutil.ReadFile(filepath2)
-	//if err != nil {
-	//	return 0, 0, err
-	//}
-
-	//3) ОПРЕДЕЛЕНИЕ КОЛЛИЧЕСТВА СТРОК
-	savedRows := 0
-	deletedRows := 0
-	allRows := 0
-
-	//Считать хэши строк или напрямую сравнивать строкуи из CurrentFileData и PreviusFileData??????
-
-	addedRows := allRows - savedRows
-
-	return addedRows, deletedRows, err
+	// Считаем добаленные и удаленные строки
+	addedRows, deletedRows := Diff(string(previousFile), string(currentFile))
+	return addedRows, deletedRows, nil
 }
 
-// заглушка чтобы избавиться от ошибки нереализованного интерфейса
-func (a *Azure) GetItemVersions(ChangesUrl string) (int, int) {
-	return 0, 0
+func isImage(path string) bool {
+	if strings.Contains(path, ".jpg") ||
+		strings.Contains(path, ".jpeg") ||
+		strings.Contains(path, ".png") {
+		return true
+	}
+	return false
 }
