@@ -7,7 +7,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -36,8 +35,5 @@ func Test_exporter_GetProjectMetrics(t *testing.T) {
 	wg := sync.WaitGroup{}
 	serv := NewPrometheusServer(&wg, time.Second*5)
 	serv.Start(":8080")
-	time.Sleep(time.Second * 30)
-	err = serv.Stop()
-	assert.NoError(t, err)
 	wg.Wait()
 }
