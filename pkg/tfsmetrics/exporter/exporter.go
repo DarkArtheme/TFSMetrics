@@ -7,8 +7,8 @@ import (
 )
 
 type Exporter interface {
-	GetDataByProject(iterator repointerface.CommitIterator, project string) map[string]ByAuthor
-	GetDataByAuthor(iterator repointerface.CommitIterator, author string) map[string]ByProject
+	GetDataByProject(iterator repointerface.CommitIterator, project string) map[string]ByProject
+	GetDataByAuthor(iterator repointerface.CommitIterator, author string) map[string]ByAuthor
 	// Принимает КОПИЮ итератора и создает по нему метрики для проекта
 	GetProjectMetrics(iterator repointerface.CommitIterator, project string)
 }
@@ -80,10 +80,10 @@ type ByProject struct {
 	DeletedRows int
 }
 
-func (e *exporter) GetDataByProject(iterator repointerface.CommitIterator, project string) map[string]ByAuthor {
+func (e *exporter) GetDataByProject(iterator repointerface.CommitIterator, project string) map[string]ByProject {
 	return nil
 }
 
-func (e *exporter) GetDataByAuthor(iterator repointerface.CommitIterator, author string) map[string]ByProject {
+func (e *exporter) GetDataByAuthor(iterator repointerface.CommitIterator, author string) map[string]ByAuthor {
 	return nil
 }
