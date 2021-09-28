@@ -19,22 +19,22 @@ type metrics struct {
 	deletedRows prometheus.Counter
 }
 
-func newMetrics(author string, project string) *metrics {
+func newMetrics(author string, email string, project string) *metrics {
 	m := &metrics{
 		commits: prometheus.NewCounter(prometheus.CounterOpts{
 			Name:        "commits",
 			Help:        "commits counter",
-			ConstLabels: map[string]string{"author": author, "project": project},
+			ConstLabels: map[string]string{"author": author, "email": email, "project": project},
 		}),
 		addedRows: prometheus.NewCounter(prometheus.CounterOpts{
 			Name:        "added_rows",
 			Help:        "added_rows counter",
-			ConstLabels: map[string]string{"author": author, "project": project},
+			ConstLabels: map[string]string{"author": author, "email": email, "project": project},
 		}),
 		deletedRows: prometheus.NewCounter(prometheus.CounterOpts{
 			Name:        "deleted_rows",
 			Help:        "deleted_rows counter",
-			ConstLabels: map[string]string{"author": author, "project": project},
+			ConstLabels: map[string]string{"author": author, "email": email, "project": project},
 		}),
 	}
 	prometheus.MustRegister(m.commits, m.addedRows, m.deletedRows)
@@ -60,7 +60,7 @@ func (e *exporter) GetProjectMetrics(iterator repointerface.CommitIterator, proj
 			m.addedRows.Add(float64(commit.AddedRows))
 			m.deletedRows.Add(float64(commit.DeletedRows))
 		} else {
-			e.authors[commit.Author] = newMetrics(commit.Author, project)
+			e.authors[commit.Author] = newMetrics(commit.Author, commit.Email, project)
 			e.authors[commit.Author].commits.Inc()
 			e.authors[commit.Author].addedRows.Add(float64(commit.AddedRows))
 			e.authors[commit.Author].deletedRows.Add(float64(commit.DeletedRows))
