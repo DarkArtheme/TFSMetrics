@@ -39,9 +39,8 @@ func CreateMetricsApp(prjPath *string) *cli.App {
 	settingsPath := path.Join(*prjPath, "configs/cli-settings.json")
 	settings, _ := ReadSettingsFile(&settingsPath)
 	localStore, _ := store.NewStore()
-	var url string
-	var token string
-	var cache string
+	var url, token, cache string
+	var author, project string
 	var port int
 	app.Commands = []*cli.Command {
 		{
@@ -106,6 +105,80 @@ func CreateMetricsApp(prjPath *string) *cli.App {
 			},
 		},
 		{
+			Name: "getmetrics",
+			Aliases: []string{"gm"},
+			Usage: "вывод на экран данных метрики по конкретному автору или по проекту",
+			Flags: []cli.Flag {
+				&cli.StringFlag {
+					Name:        "author",
+					Aliases:     []string{"a"},
+					Usage:       "данные метрики по конкретному автору",
+					Destination: &author,
+				},
+				&cli.StringFlag {
+					Name:        "project",
+					Aliases:     []string{"p"},
+					Usage:       "данные метрики по конкретному проекту",
+					Destination: &project,
+				},
+			},
+			Action: func(c *cli.Context) error {
+				if author == "" && project == "" {
+					return errors.New("Пожалуйста, укажите автора или название проекта.")
+				}
+				if author != "" && project == "" {
+					return errors.New("Пожалуйста, укажите название проекта.")
+				}
+				var err error
+				azureClient, err := connect(prjPath)
+				if err != nil {
+					return err
+				}
+				settings, _ := ReadSettingsFile(&settingsPath)
+				exp := exporter.NewExporter()
+				if project != "" {
+					commits := tfsmetrics.NewCommitCollection(project, azureClient, settings.CacheEnabled, localStore)
+					err = commits.Open()
+					if err != nil {
+						return err
+					}
+					iter, err := commits.GetCommitIterator()
+					if err != nil {
+						return err
+					}
+					if author != "" {
+						data := exp.GetDataByAuthor(iter, author, project)
+						printByAuthor(data[author])
+					} else {
+						data := exp.GetDataByProject(iter, project)
+						printByProject(data[project])
+					}
+				}
+				return nil
+			},
+		},
+		{
+			Name:    "list",
+			Aliases: []string{"ls"},
+			Usage:   "вывод на экран названий всех проектов в репозитории",
+			Action: func(context *cli.Context) error {
+				var err error
+				azureClient, err := connect(prjPath)
+				if err != nil {
+					return err
+				}
+				projectNames, err := azureClient.ListOfProjects()
+				if err != nil {
+					return err
+				}
+				fmt.Println("Доступны следующие проекты:")
+				for ind, project := range projectNames {
+					fmt.Printf("%d) %s\n", ind+1, *project)
+				}
+				return nil
+			},
+		},
+		{
 			Name:	"log",
 			Aliases: []string{"l"},
 			Usage:   "получение информации обо всех коммитах",
@@ -160,34 +233,12 @@ func CreateMetricsApp(prjPath *string) *cli.App {
 					iter, _ := commits.GetCommitIterator()
 					exp := exporter.NewExporter()
 					exp.GetProjectMetrics(iter, *project)
-
 				}
 				fmt.Printf("Метрики доступны по адресу http://localhost:%d/metrics\n", settings.ExporterPort)
 				wg := sync.WaitGroup{}
 				serv := exporter.NewPrometheusServer(&wg, time.Second*5)
 				serv.Start(":" + strconv.Itoa(settings.ExporterPort))
 				wg.Wait()
-				return nil
-			},
-		},
-		{
-			Name:    "list",
-			Aliases: []string{"ls"},
-			Usage:   "вывод на экран названий всех проектов в репозитории",
-			Action: func(context *cli.Context) error {
-				var err error
-				azureClient, err := connect(prjPath)
-				if err != nil {
-					return err
-				}
-				projectNames, err := azureClient.ListOfProjects()
-				if err != nil {
-					return err
-				}
-				fmt.Println("Доступны следующие проекты:")
-				for ind, project := range projectNames {
-					fmt.Printf("%d) %s\n", ind+1, *project)
-				}
 				return nil
 			},
 		},
@@ -317,4 +368,19 @@ func connect(prjPath *string) (azure.AzureInterface, error) {
 		return nil, err
 	}
 	return azureClient, err
+}
+
+func printByAuthor(byauthor exporter.ByAuthor) {
+	var projects string
+	for _, prj := range byauthor.Projects {
+		projects += prj + " "
+	}
+	fmt.Printf("Проекты: %s\n", projects)
+	fmt.Printf("Количество коммитов: %d\nКоличество добавленных строк %d\nКоличество удаленных строк %d\n",
+		byauthor.Commits, byauthor.AddedRows, byauthor.DeletedRows)
+}
+
+func printByProject(byproject exporter.ByProject) {
+	fmt.Printf("Автор проекта: %s\nКоличество коммитов: %d\nКоличество добавленных строк %d\nКоличество удаленных строк %d\n",
+		byproject.Author, byproject.Commits, byproject.AddedRows, byproject.DeletedRows)
 }

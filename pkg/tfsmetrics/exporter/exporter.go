@@ -126,5 +126,5 @@ func (e *exporter) GetDataByAuthor(iterator repointerface.CommitIterator, author
 			}
 		}
 	}
-	return nil
+	return e.dataByAuthor
 }
