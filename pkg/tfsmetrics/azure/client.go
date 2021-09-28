@@ -20,7 +20,7 @@ type AzureInterface interface {
 
 	GetChangesets(nameOfProject string) ([]*int, error)              // Получает все id ченджсетов проекта
 	GetChangesetChanges(id *int, project string) (*ChangeSet, error) // получает все изминения для конкретного changeSet
-	ChangedRows(currentFileUrl, version string) (int, int, error)    // Принимает ссылки на разные версии файлов возвращает Добавленные и Удаленные строки
+	ChangedRows(currentFilePath, version string) (int, int, error)   // Принимает ссылки на разные версии файлов возвращает Добавленные и Удаленные строки
 }
 
 type ChangeSet struct {
@@ -147,9 +147,9 @@ func (a *Azure) GetChangesetChanges(id *int, project string) (*ChangeSet, error)
 	return commit, nil
 }
 
-func (a *Azure) ChangedRows(currentFileUrl, version string) (int, int, error) {
+func (a *Azure) ChangedRows(currentFilePath, version string) (int, int, error) {
 	// Берем текущую версию файла
-	currentItemContent, err := a.TfvcClient.GetItemContent(a.Config.Context, tfvc.GetItemContentArgs{Path: &currentFileUrl,
+	currentItemContent, err := a.TfvcClient.GetItemContent(a.Config.Context, tfvc.GetItemContentArgs{Path: &currentFilePath,
 		VersionDescriptor: &git.TfvcVersionDescriptor{Version: &version}})
 	if err != nil {
 		return 0, 0, err
@@ -160,11 +160,10 @@ func (a *Azure) ChangedRows(currentFileUrl, version string) (int, int, error) {
 	}
 
 	// Берем редыдущую версию файла
-	previousFileContent, err := a.TfvcClient.GetItemContent(a.Config.Context, tfvc.GetItemContentArgs{Path: &currentFileUrl,
+	previousFileContent, err := a.TfvcClient.GetItemContent(a.Config.Context, tfvc.GetItemContentArgs{Path: &currentFilePath,
 		VersionDescriptor: &git.TfvcVersionDescriptor{Version: &version, VersionOption: &git.TfvcVersionOptionValues.Previous}})
 	if err != nil { //если нет прошлой версии считаем кол-во строк в текущем файле
-		transformString := string(currentFile)
-		arrTransformStrings := strings.Split(transformString, "\n")
+		arrTransformStrings := strings.Split(string(currentFile), "\n")
 		return len(arrTransformStrings), 0, nil
 	}
 
