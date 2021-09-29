@@ -30,7 +30,7 @@ func CreateMetricsApp(prjPath *string) *cli.App {
 	app.Name = "cli-metrics"
 	app.Usage = "CLI для взаимодействия с библиотекой"
 	app.EnableBashCompletion = true
-	app.Version = "0.9"
+	app.Version = "1.0"
 	app.Authors = []*cli.Author{
 		{Name: "Андрей Назаренко"},
 		{Name: "Артем Богданов"},
@@ -145,7 +145,9 @@ func CreateMetricsApp(prjPath *string) *cli.App {
 						return err
 					}
 					data := exp.GetDataByProject(iter, project)
+					fmt.Printf("Данные метрики по проекту '%s':\n", project)
 					printByProject(data[project])
+					fmt.Println()
 				}
 				if author != "" {
 					data := make(map[string] *exporter.ByAuthor)
@@ -159,7 +161,9 @@ func CreateMetricsApp(prjPath *string) *cli.App {
 						iter, _ := commits.GetCommitIterator()
 						data = exp.GetDataByAuthor(iter, author, *prj)
 					}
+					fmt.Printf("Данные метрики по автору '%s':\n", author)
 					printByAuthor(data[author])
+					fmt.Println()
 				}
 				return nil
 			},
