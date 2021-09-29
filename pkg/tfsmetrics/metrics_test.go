@@ -4,6 +4,8 @@ import (
 	"errors"
 	"go-marathon-team-3/pkg/tfsmetrics/azure"
 	"go-marathon-team-3/pkg/tfsmetrics/mock"
+	"go-marathon-team-3/pkg/tfsmetrics/mock/mock_azure"
+
 	"go-marathon-team-3/pkg/tfsmetrics/repointerface"
 	"testing"
 	"time"
@@ -46,7 +48,7 @@ import (
 func Test_iterator_Next_cahche_false(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	mockedAzure := mock.NewMockAzureInterface(ctrl)
+	mockedAzure := mock_azure.NewMockAzureInterface(ctrl)
 
 	project := "project"
 
@@ -111,7 +113,7 @@ func Test_iterator_Next_cahche_true(t *testing.T) {
 
 	ctrlAzure := gomock.NewController(t)
 	defer ctrlAzure.Finish()
-	mockedAzure := mock.NewMockAzureInterface(ctrlAzure)
+	mockedAzure := mock_azure.NewMockAzureInterface(ctrlAzure)
 
 	project := "project"
 

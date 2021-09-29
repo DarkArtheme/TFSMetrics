@@ -2,7 +2,7 @@
 // Source: /Users/andrey/projects/go-marathon-team-3/pkg/tfsmetrics/azure/client.go
 
 // Package mock_azure is a generated GoMock package.
-package mock
+package mock_azure
 
 import (
 	azure "go-marathon-team-3/pkg/tfsmetrics/azure"
