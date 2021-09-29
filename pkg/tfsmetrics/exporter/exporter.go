@@ -7,7 +7,7 @@ import (
 )
 
 type Exporter interface {
-	GetDataByProject(iterator repointerface.CommitIterator) map[string]*ByProject
+	GetDataByProject(iterator repointerface.CommitIterator, project string) map[string]*ByProject
 	GetDataByAuthor(iterator repointerface.CommitIterator, author string, project string) map[string]*ByAuthor
 	// Принимает КОПИЮ итератора и создает по нему метрики для проекта
 	GetProjectMetrics(iterator repointerface.CommitIterator, project string)
@@ -80,15 +80,15 @@ type ByProject struct {
 	DeletedRows int
 }
 
-func (e *exporter) GetDataByProject(iterator repointerface.CommitIterator) map[string]*ByProject {
+func (e *exporter) GetDataByProject(iterator repointerface.CommitIterator, project string) map[string]*ByProject {
 	res := make(map[string]*ByProject)
 	for commit, err := iterator.Next(); err == nil; commit, err = iterator.Next() {
-		if author, ok := res[commit.Author]; ok {
-			author.Commits += 1
-			author.AddedRows += commit.AddedRows
-			author.DeletedRows += commit.DeletedRows
+		if prj, ok := res[project]; ok {
+			prj.Commits += 1
+			prj.AddedRows += commit.AddedRows
+			prj.DeletedRows += commit.DeletedRows
 		} else {
-			res[commit.Author] = &ByProject{
+			res[project] = &ByProject{
 				Commits:     1,
 				AddedRows:   commit.AddedRows,
 				DeletedRows: commit.DeletedRows,
@@ -100,7 +100,7 @@ func (e *exporter) GetDataByProject(iterator repointerface.CommitIterator) map[s
 
 func (e *exporter) GetDataByAuthor(iterator repointerface.CommitIterator, author string, project string) map[string]*ByAuthor {
 	for commit, err := iterator.Next(); err == nil; commit, err = iterator.Next() {
-		if auth, ok := e.dataByAuthor[project]; ok {
+		if auth, ok := e.dataByAuthor[author]; ok {
 			if commit.Author == author {
 				auth.Commits += 1
 				auth.AddedRows += commit.AddedRows
@@ -108,7 +108,7 @@ func (e *exporter) GetDataByAuthor(iterator repointerface.CommitIterator, author
 			}
 		} else {
 			if commit.Author == author {
-				e.dataByAuthor[project] = &ByAuthor{
+				e.dataByAuthor[author] = &ByAuthor{
 					Commits:     1,
 					AddedRows:   commit.AddedRows,
 					DeletedRows: commit.DeletedRows,
