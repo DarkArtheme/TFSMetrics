@@ -4,7 +4,9 @@ import (
 	"fmt"
 	"go-marathon-team-3/pkg/tfsmetrics"
 	"go-marathon-team-3/pkg/tfsmetrics/azure"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -20,7 +22,6 @@ func Test_exporter_GetProjectMetrics(t *testing.T) {
 	projects, err := azure.ListOfProjects()
 	require.NoError(t, err)
 
-	met := make(map[string]*ByAuthor)
 	exp := NewExporter()
 	for _, project := range projects {
 		fmt.Println(*project)
@@ -29,15 +30,10 @@ func Test_exporter_GetProjectMetrics(t *testing.T) {
 		require.NoError(t, err)
 		iter, err := commmits.GetCommitIterator()
 		require.NoError(t, err)
-
-		met = exp.GetDataByAuthor(iter, "Андрей Назаренко", *project)
-
+		exp.PrometheusMetrics(iter, *project)
 	}
-	for k, v := range met {
-		fmt.Println(k, v)
-	}
-	// wg := sync.WaitGroup{}
-	// serv := NewPrometheusServer(&wg, time.Second*5)
-	// serv.Start(":8080")
-	// wg.Wait()
+	wg := sync.WaitGroup{}
+	serv := NewPrometheusServer(&wg, time.Second*5)
+	serv.Start(":8080")
+	wg.Wait()
 }

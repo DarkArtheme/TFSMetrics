@@ -7,64 +7,57 @@ import (
 )
 
 type Exporter interface {
+	// Возвращяет данные по проекту
 	GetDataByProject(iterator repointerface.CommitIterator) map[string]*ByProject
+	// Возвращает данные по автору
 	GetDataByAuthor(iterator repointerface.CommitIterator, author string, project string) map[string]*ByAuthor
-	// Принимает КОПИЮ итератора и создает по нему метрики для проекта
-	GetProjectMetrics(iterator repointerface.CommitIterator, project string)
+	// Принимает итератор и создает по нему метрики Prometheus
+	PrometheusMetrics(iterator repointerface.CommitIterator, project string)
 }
 
 type metrics struct {
-	commits     prometheus.Counter
-	addedRows   prometheus.Counter
-	deletedRows prometheus.Counter
+	commits     prometheus.CounterVec
+	addedRows   prometheus.CounterVec
+	deletedRows prometheus.CounterVec
 }
 
-func newMetrics(author string, email string, project string) *metrics {
+func newMetrics() *metrics {
 	m := &metrics{
-		commits: prometheus.NewCounter(prometheus.CounterOpts{
-			Name:        "commits",
-			Help:        "commits counter",
-			ConstLabels: map[string]string{"author": author, "email": email, "project": project},
-		}),
-		addedRows: prometheus.NewCounter(prometheus.CounterOpts{
-			Name:        "added_rows",
-			Help:        "added_rows counter",
-			ConstLabels: map[string]string{"author": author, "email": email, "project": project},
-		}),
-		deletedRows: prometheus.NewCounter(prometheus.CounterOpts{
-			Name:        "deleted_rows",
-			Help:        "deleted_rows counter",
-			ConstLabels: map[string]string{"author": author, "email": email, "project": project},
-		}),
+		commits: *prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "commits",
+		}, []string{"project", "author", "email"}),
+		addedRows: *prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "added_rows",
+		}, []string{"project", "author", "email"}),
+		deletedRows: *prometheus.NewCounterVec(prometheus.CounterOpts{
+			Name: "deleted_rows",
+		}, []string{"project", "author", "email"}),
 	}
 	prometheus.MustRegister(m.commits, m.addedRows, m.deletedRows)
 	return m
 }
 
 type exporter struct {
-	authors      map[string]*metrics
+	metrics      *metrics
 	dataByAuthor map[string]*ByAuthor
 }
 
 func NewExporter() Exporter {
 	return &exporter{
-		authors:      make(map[string]*metrics),
+		metrics:      newMetrics(),
 		dataByAuthor: make(map[string]*ByAuthor),
 	}
 }
 
-func (e *exporter) GetProjectMetrics(iterator repointerface.CommitIterator, project string) {
+func (e *exporter) PrometheusMetrics(iterator repointerface.CommitIterator, project string) {
 	for commit, err := iterator.Next(); err == nil; commit, err = iterator.Next() {
-		if m, ok := e.authors[commit.Author]; ok {
-			m.commits.Inc()
-			m.addedRows.Add(float64(commit.AddedRows))
-			m.deletedRows.Add(float64(commit.DeletedRows))
-		} else {
-			e.authors[commit.Author] = newMetrics(commit.Author, commit.Email, project)
-			e.authors[commit.Author].commits.Inc()
-			e.authors[commit.Author].addedRows.Add(float64(commit.AddedRows))
-			e.authors[commit.Author].deletedRows.Add(float64(commit.DeletedRows))
-		}
+		e.metrics.commits.With(prometheus.Labels{"project": project,
+			"author": commit.Author, "email": commit.Email}).Inc()
+		e.metrics.addedRows.With(prometheus.Labels{"project": project,
+			"author": commit.Author, "email": commit.Email}).Add(float64(commit.AddedRows))
+		e.metrics.deletedRows.With(prometheus.Labels{"project": project,
+			"author": commit.Author, "email": commit.Email}).Add(float64(commit.DeletedRows))
+
 	}
 }
 
