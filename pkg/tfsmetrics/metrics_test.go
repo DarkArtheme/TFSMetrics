@@ -9,10 +9,6 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
-	"github.com/microsoft/azure-devops-go-api/azuredevops"
-	"github.com/microsoft/azure-devops-go-api/azuredevops/git"
-	"github.com/microsoft/azure-devops-go-api/azuredevops/tfvc"
-	"github.com/microsoft/azure-devops-go-api/azuredevops/webapi"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -50,13 +46,7 @@ import (
 func Test_iterator_Next_cahche_false(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
-	mockedClient := mock.NewMockClient(ctrl)
-
-	conf := azure.NewConfig()
-	a := azure.Azure{
-		Config:     conf,
-		TfvcClient: mockedClient,
-	}
+	mockedAzure := mock.NewMockAzureInterface(ctrl)
 
 	project := "project"
 
@@ -64,8 +54,8 @@ func Test_iterator_Next_cahche_false(t *testing.T) {
 		Id:          1,
 		Author:      "Ivan",
 		Email:       "example@example.com",
-		AddedRows:   0,
-		DeletedRows: 0,
+		AddedRows:   10,
+		DeletedRows: 5,
 		Date:        time.Now(),
 		Message:     "hello world",
 		Hash:        "",
@@ -75,19 +65,25 @@ func Test_iterator_Next_cahche_false(t *testing.T) {
 		index:         0,
 		commits:       []*int{&c.Id},
 		nameOfProject: project,
-		azure:         &a,
+		azure:         mockedAzure,
 		cache:         false,
 		store:         nil,
 	}
 
 	// правильная работа, без ощибки
-	mockedClient.
+	mockedAzure.
 		EXPECT().
-		GetChangeset(a.Config.Context, tfvc.GetChangesetArgs{Id: &c.Id, Project: &project}).
-		Return(&git.TfvcChangeset{
-			Author:      &webapi.IdentityRef{DisplayName: &c.Author, UniqueName: &c.Email},
-			CreatedDate: &azuredevops.Time{Time: c.Date},
-			Comment:     &c.Message,
+		GetChangesetChanges(&c.Id, project).
+		Return(&azure.ChangeSet{
+			ProjectName: project,
+			Id:          c.Id,
+			Author:      c.Author,
+			Email:       c.Email,
+			AddedRows:   c.AddedRows,
+			DeletedRows: c.DeletedRows,
+			Date:        c.Date,
+			Message:     c.Message,
+			Hash:        c.Hash,
 		}, nil)
 
 	commit, err := iter.Next()
@@ -97,9 +93,9 @@ func Test_iterator_Next_cahche_false(t *testing.T) {
 	// azure возвращает ошибку
 	c.Id += 2
 	iter.commits = append(iter.commits, &c.Id)
-	mockedClient.
+	mockedAzure.
 		EXPECT().
-		GetChangeset(a.Config.Context, tfvc.GetChangesetArgs{Id: &c.Id, Project: &project}).
+		GetChangesetChanges(&c.Id, project).
 		Return(nil, errors.New("error"))
 
 	commit, err = iter.Next()
@@ -113,15 +109,9 @@ func Test_iterator_Next_cahche_true(t *testing.T) {
 
 	mockedStore := mock.NewMockStore(ctrl)
 
-	ctrlClient := gomock.NewController(t)
-	defer ctrlClient.Finish()
-	mockedClient := mock.NewMockClient(ctrlClient)
-
-	conf := azure.NewConfig()
-	a := azure.Azure{
-		Config:     conf,
-		TfvcClient: mockedClient,
-	}
+	ctrlAzure := gomock.NewController(t)
+	defer ctrlAzure.Finish()
+	mockedAzure := mock.NewMockAzureInterface(ctrlAzure)
 
 	project := "project"
 
@@ -142,19 +132,25 @@ func Test_iterator_Next_cahche_true(t *testing.T) {
 		index:         0,
 		commits:       []*int{&c.Id, &c2.Id},
 		nameOfProject: project,
-		azure:         &a,
+		azure:         mockedAzure,
 		cache:         true,
 		store:         mockedStore,
 	}
 
 	// не находит в бд берет из azure и записывает в базу
-	mockedClient.
+	mockedAzure.
 		EXPECT().
-		GetChangeset(a.Config.Context, tfvc.GetChangesetArgs{Id: &c.Id, Project: &project}).
-		Return(&git.TfvcChangeset{
-			Author:      &webapi.IdentityRef{DisplayName: &c.Author, UniqueName: &c.Email},
-			CreatedDate: &azuredevops.Time{Time: c.Date},
-			Comment:     &c.Message,
+		GetChangesetChanges(&c.Id, project).
+		Return(&azure.ChangeSet{
+			ProjectName: project,
+			Id:          c.Id,
+			Author:      c.Author,
+			Email:       c.Email,
+			AddedRows:   c.AddedRows,
+			DeletedRows: c.DeletedRows,
+			Date:        c.Date,
+			Message:     c.Message,
+			Hash:        c.Hash,
 		}, nil)
 
 	mockedStore.
