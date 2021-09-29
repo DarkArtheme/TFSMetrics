@@ -144,9 +144,9 @@ func CreateMetricsApp(prjPath *string) *cli.App {
 					if err != nil {
 						return err
 					}
-					data := exp.GetDataByProject(iter, project)
+					data := exp.GetDataByProject(iter)
 					fmt.Printf("Данные метрики по проекту '%s':\n", project)
-					printByProject(data[project])
+					printByProject(&data)
 					fmt.Println()
 				}
 				if author != "" {
@@ -162,7 +162,7 @@ func CreateMetricsApp(prjPath *string) *cli.App {
 						data = exp.GetDataByAuthor(iter, author, *prj)
 					}
 					fmt.Printf("Данные метрики по автору '%s':\n", author)
-					printByAuthor(data[author])
+					printByAuthor(&data)
 					fmt.Println()
 				}
 				return nil
@@ -381,12 +381,20 @@ func connect(prjPath *string) (azure.AzureInterface, error) {
 	return azureClient, err
 }
 
-func printByAuthor(byauthor *exporter.ByAuthor) {
-	fmt.Printf("Количество коммитов: %d\nКоличество добавленных строк %d\nКоличество удаленных строк %d\n",
-		(*byauthor).Commits, (*byauthor).AddedRows, (*byauthor).DeletedRows)
+func printByAuthor(byauthor *map[string]*exporter.ByAuthor) {
+	for project, stats := range *byauthor {
+		fmt.Printf("Проект: %s\n", project)
+		fmt.Printf("\tКоличество коммитов: %d\n\tКоличество добавленных строк %d\n\tКоличество удаленных строк %d\n",
+			(*stats).Commits, (*stats).AddedRows, (*stats).DeletedRows)
+	}
+
 }
 
-func printByProject(byproject *exporter.ByProject) {
-	fmt.Printf("Количество коммитов: %d\nКоличество добавленных строк %d\nКоличество удаленных строк %d\n",
-		(*byproject).Commits, (*byproject).AddedRows, (*byproject).DeletedRows)
+func printByProject(byproject *map[string]*exporter.ByProject) {
+	for author, stats := range *byproject {
+		fmt.Printf("Автор: %s\n", author)
+		fmt.Printf("\tКоличество коммитов: %d\n\tКоличество добавленных строк %d\n\tКоличество удаленных строк %d\n",
+			(*stats).Commits, (*stats).AddedRows, (*stats).DeletedRows)
+	}
+
 }
