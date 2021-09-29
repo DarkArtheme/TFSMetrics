@@ -22,7 +22,7 @@ import (
 
 type cliSettings struct {
 	CacheEnabled bool `json:"cache-enabled"`
-	ExporterPort int `json:"exporter-port"`
+	ExporterPort int  `json:"exporter-port"`
 }
 
 func CreateMetricsApp(prjPath *string) *cli.App {
@@ -42,35 +42,35 @@ func CreateMetricsApp(prjPath *string) *cli.App {
 	var url, token, cache string
 	var author, project string
 	var port int
-	app.Commands = []*cli.Command {
+	app.Commands = []*cli.Command{
 		{
 			Name:    "config",
 			Aliases: []string{"c"},
 			Usage:   "установка параметров, необходимых для подключения к Azure (подробнее см. cli-metrics config --help)",
 			Flags: []cli.Flag{
-				&cli.StringFlag {
+				&cli.StringFlag{
 					Name:        "organization-url",
 					Aliases:     []string{"url", "u"},
 					Usage:       "url для подключения к Azure",
 					Destination: &url,
 				},
-				&cli.StringFlag {
+				&cli.StringFlag{
 					Name:        "access-token",
 					Aliases:     []string{"token", "t"},
 					Usage:       "personal access token для подключения к Azure",
 					Destination: &token,
 				},
-				&cli.StringFlag {
-					Name: "cache-enabled",
-					Aliases: []string{"cache", "c"},
-					Usage: "логический флаг следует ли использовать кеш при работе программы",
+				&cli.StringFlag{
+					Name:        "cache-enabled",
+					Aliases:     []string{"cache", "c"},
+					Usage:       "логический флаг следует ли использовать кеш при работе программы",
 					Destination: &cache,
 				},
-				&cli.IntFlag {
-					Name: "exporter-port",
-					Aliases: []string{"port", "p"},
-					Usage: "номер порта, на котором запускается экспортер",
-					Value: 8080,
+				&cli.IntFlag{
+					Name:        "exporter-port",
+					Aliases:     []string{"port", "p"},
+					Usage:       "номер порта, на котором запускается экспортер",
+					Value:       8080,
 					Destination: &port,
 				},
 			},
@@ -86,19 +86,22 @@ func CreateMetricsApp(prjPath *string) *cli.App {
 				if token != "" {
 					config.Token = token
 				}
-				if cache == "true"  {
+				if cache == "true" {
 					settings.CacheEnabled = true
 				} else if cache != "" {
 					settings.CacheEnabled = false
 				}
 				if port != settings.ExporterPort {
-					if port < 1024 || port > 65535{
+					if port < 1024 || port > 65535 {
 						return errors.New("Введите порт в диапазоне от 1024 до 65535!")
 					} else {
 						settings.ExporterPort = port
 					}
 				}
 				err = WriteConfigFile(&configPath, config)
+				if err != nil {
+					return err
+				}
 				err = WriteSettingsFile(&settingsPath, settings)
 				fmt.Printf("Текущая конфигурация:\nURL: %s\nToken: %s\nCacheEnabled: %t\nExporterPort: %d\n",
 					config.OrganizationUrl, config.Token, settings.CacheEnabled, settings.ExporterPort)
@@ -106,17 +109,17 @@ func CreateMetricsApp(prjPath *string) *cli.App {
 			},
 		},
 		{
-			Name: "getmetrics",
+			Name:    "getmetrics",
 			Aliases: []string{"gm"},
-			Usage: "вывод на экран данных метрики по конкретному автору или по проекту",
-			Flags: []cli.Flag {
-				&cli.StringFlag {
+			Usage:   "вывод на экран данных метрики по конкретному автору или по проекту",
+			Flags: []cli.Flag{
+				&cli.StringFlag{
 					Name:        "author",
 					Aliases:     []string{"a"},
 					Usage:       "данные метрики по конкретному автору",
 					Destination: &author,
 				},
-				&cli.StringFlag {
+				&cli.StringFlag{
 					Name:        "project",
 					Aliases:     []string{"p"},
 					Usage:       "данные метрики по конкретному проекту",
@@ -150,7 +153,7 @@ func CreateMetricsApp(prjPath *string) *cli.App {
 					fmt.Println()
 				}
 				if author != "" {
-					data := make(map[string] *exporter.ByAuthor)
+					data := make(map[string]*exporter.ByAuthor)
 					projectNames, err := azureClient.ListOfProjects()
 					if err != nil {
 						return err
@@ -158,7 +161,13 @@ func CreateMetricsApp(prjPath *string) *cli.App {
 					for _, prj := range projectNames {
 						commits := tfsmetrics.NewCommitCollection(*prj, azureClient, settings.CacheEnabled, localStore)
 						err = commits.Open()
-						iter, _ := commits.GetCommitIterator()
+						if err != nil {
+							return err
+						}
+						iter, err := commits.GetCommitIterator()
+						if err != nil {
+							return err
+						}
 						data = exp.GetDataByAuthor(iter, author, *prj)
 					}
 					fmt.Printf("Данные метрики по автору '%s':\n", author)
@@ -190,7 +199,7 @@ func CreateMetricsApp(prjPath *string) *cli.App {
 			},
 		},
 		{
-			Name:	"log",
+			Name:    "log",
 			Aliases: []string{"l"},
 			Usage:   "получение информации обо всех коммитах",
 			Action: func(context *cli.Context) error {
@@ -224,9 +233,9 @@ func CreateMetricsApp(prjPath *string) *cli.App {
 			},
 		},
 		{
-			Name: "start-exporter",
+			Name:    "start-exporter",
 			Aliases: []string{"s"},
-			Usage: "запуск экспортера (для запуска в фоне введите: nohup cli-metrics start-exporter &)",
+			Usage:   "запуск экспортера (для запуска в фоне введите: nohup cli-metrics start-exporter &)",
 			Action: func(context *cli.Context) error {
 				var err error
 				azureClient, err := connect(prjPath)
@@ -238,12 +247,18 @@ func CreateMetricsApp(prjPath *string) *cli.App {
 				if err != nil {
 					return err
 				}
+				exp := exporter.NewExporter()
 				for _, project := range projectNames {
 					commits := tfsmetrics.NewCommitCollection(*project, azureClient, settings.CacheEnabled, localStore)
 					err = commits.Open()
-					iter, _ := commits.GetCommitIterator()
-					exp := exporter.NewExporter()
-					exp.GetProjectMetrics(iter, *project)
+					if err != nil {
+						return err
+					}
+					iter, err := commits.GetCommitIterator()
+					if err != nil {
+						return err
+					}
+					exp.PrometheusMetrics(iter, *project)
 				}
 				fmt.Printf("Метрики доступны по адресу http://localhost:%d/metrics\n", settings.ExporterPort)
 				wg := sync.WaitGroup{}
@@ -357,7 +372,6 @@ func processProject(project *string, azureClient *azure.AzureInterface, cacheEna
 	}
 	return nil
 }
-
 
 func connect(prjPath *string) (azure.AzureInterface, error) {
 	filePath := path.Join(*prjPath, "configs/config.json")
